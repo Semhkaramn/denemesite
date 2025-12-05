@@ -37,7 +37,7 @@ export default function Messaging() {
   const [messageHTML, setMessageHTML] = useState('');
   const [useHTML, setUseHTML] = useState(false);
   const [parseMode, setParseMode] = useState<'HTML' | 'Markdown'>('HTML');
-  const [disableWebPagePreview, setDisableWebPagePreview] = useState(true);
+  const [disableWebPagePreview] = useState(true); // Always disabled
   const [photoUrl, setPhotoUrl] = useState('');
   const [buttons, setButtons] = useState<Array<{text: string, url: string}>>([]);
 
@@ -284,20 +284,6 @@ export default function Messaging() {
               >
                 HTML
               </Button>
-            </div>
-          </div>
-
-          {/* Message Options */}
-          <div className="space-y-3 p-4 bg-zinc-50 dark:bg-zinc-900 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Link Önizlemesini Kapat</Label>
-                <p className="text-xs text-zinc-500">Mesajdaki linkler önizleme göstermez</p>
-              </div>
-              <Switch
-                checked={disableWebPagePreview}
-                onCheckedChange={setDisableWebPagePreview}
-              />
             </div>
           </div>
 
