@@ -37,6 +37,9 @@ export default function Messaging() {
   const [messageHTML, setMessageHTML] = useState('');
   const [useHTML, setUseHTML] = useState(false);
   const [parseMode, setParseMode] = useState<'HTML' | 'Markdown'>('HTML');
+  const [disableWebPagePreview, setDisableWebPagePreview] = useState(true);
+  const [photoUrl, setPhotoUrl] = useState('');
+  const [buttons, setButtons] = useState<Array<{text: string, url: string}>>([]);
 
   // Selected users
   const [selectedUsers, setSelectedUsers] = useState<Set<number>>(new Set());
@@ -105,8 +108,8 @@ export default function Messaging() {
   const handleSendMessage = async () => {
     const message = useHTML ? messageHTML : messageText;
 
-    if (!message.trim()) {
-      toast.error('Lütfen bir mesaj yazın!');
+    if (!message.trim() && !photoUrl) {
+      toast.error('Lütfen bir mesaj veya fotoğraf ekleyin!');
       return;
     }
 
@@ -118,14 +121,26 @@ export default function Messaging() {
     setLoading(true);
 
     try {
+      // Prepare inline keyboard if buttons exist
+      let inlineKeyboard = null;
+      if (buttons.length > 0) {
+        inlineKeyboard = [buttons.map(btn => ({
+          text: btn.text,
+          url: btn.url
+        }))];
+      }
+
       const response = await fetch('/api/messages/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message,
+          message: message || (photoUrl ? 'Fotoğraf' : ''),
           parseMode,
           sendToAll: messageType === 'all',
-          userIds: messageType === 'selected' ? Array.from(selectedUsers) : undefined
+          userIds: messageType === 'selected' ? Array.from(selectedUsers) : undefined,
+          disableWebPagePreview,
+          photoUrl: photoUrl || undefined,
+          inlineKeyboard
         })
       });
 
@@ -135,6 +150,8 @@ export default function Messaging() {
         toast.success(`Mesaj başarıyla gönderildi! (${data.sentCount} kullanıcı)`);
         setMessageText('');
         setMessageHTML('');
+        setPhotoUrl('');
+        setButtons([]);
         setSelectedUsers(new Set());
         fetchMessageHistory();
       } else {
@@ -266,6 +283,93 @@ export default function Messaging() {
                 onClick={() => setParseMode('HTML')}
               >
                 HTML
+              </Button>
+            </div>
+          </div>
+
+          {/* Message Options */}
+          <div className="space-y-3 p-4 bg-zinc-50 dark:bg-zinc-900 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Link Önizlemesini Kapat</Label>
+                <p className="text-xs text-zinc-500">Mesajdaki linkler önizleme göstermez</p>
+              </div>
+              <Switch
+                checked={disableWebPagePreview}
+                onCheckedChange={setDisableWebPagePreview}
+              />
+            </div>
+          </div>
+
+          {/* Photo URL */}
+          <div className="space-y-2">
+            <Label htmlFor="photoUrl">Fotoğraf URL (Opsiyonel)</Label>
+            <div className="flex gap-2">
+              <Input
+                id="photoUrl"
+                placeholder="https://example.com/photo.jpg"
+                value={photoUrl}
+                onChange={(e) => setPhotoUrl(e.target.value)}
+              />
+              {photoUrl && (
+                <Button
+                  variant="outline"
+                  onClick={() => setPhotoUrl('')}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+            {photoUrl && (
+              <div className="mt-2 border rounded-lg overflow-hidden">
+                <img src={photoUrl} alt="Preview" className="w-full max-h-48 object-contain" />
+              </div>
+            )}
+          </div>
+
+          {/* Buttons */}
+          <div className="space-y-2">
+            <Label>Butonlar (Inline Keyboard)</Label>
+            <div className="space-y-2">
+              {buttons.map((btn, index) => (
+                <div key={index} className="flex gap-2">
+                  <Input
+                    placeholder="Buton Metni"
+                    value={btn.text}
+                    onChange={(e) => {
+                      const newButtons = [...buttons];
+                      newButtons[index].text = e.target.value;
+                      setButtons(newButtons);
+                    }}
+                  />
+                  <Input
+                    placeholder="URL"
+                    value={btn.url}
+                    onChange={(e) => {
+                      const newButtons = [...buttons];
+                      newButtons[index].url = e.target.value;
+                      setButtons(newButtons);
+                    }}
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                      const newButtons = buttons.filter((_, i) => i !== index);
+                      setButtons(newButtons);
+                    }}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))}
+              <Button
+                variant="outline"
+                onClick={() => setButtons([...buttons, { text: '', url: '' }])}
+                className="w-full"
+              >
+                <Square className="w-4 h-4 mr-2" />
+                Buton Ekle
               </Button>
             </div>
           </div>
