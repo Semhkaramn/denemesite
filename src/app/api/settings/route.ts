@@ -3,22 +3,21 @@ import { query } from '@/lib/db';
 
 export async function GET() {
   try {
-    const result = await query('SELECT * FROM bot_settings');
-    const settings: Record<string, string> = {};
+    // Get default_link
+    const linkResult = await query(`
+      SELECT value FROM bot_settings WHERE key = 'default_link'
+    `);
 
-    for (const row of result.rows) {
-      settings[row.key] = row.value;
-    }
-
-    // Get promocod settings
-    const promocodResult = await query('SELECT * FROM promocod_settings ORDER BY id DESC LIMIT 1');
-    const promocodSettings = promocodResult.rows[0] || { one_per_user: true };
+    // Get one_per_user setting
+    const settingsResult = await query(`
+      SELECT one_per_user FROM promocod_settings ORDER BY id DESC LIMIT 1
+    `);
 
     return NextResponse.json({
       success: true,
       data: {
-        ...settings,
-        promocod_one_per_user: promocodSettings.one_per_user
+        default_link: linkResult.rows[0]?.value || '',
+        one_per_user: settingsResult.rows[0]?.one_per_user !== false
       }
     });
   } catch (error) {
@@ -30,29 +29,29 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { key, value } = body;
+    const { default_link, one_per_user } = body;
 
-    if (!key) {
-      return NextResponse.json({ success: false, error: 'Key is required' }, { status: 400 });
+    // Update default_link
+    if (default_link !== undefined) {
+      await query(`
+        INSERT INTO bot_settings (key, value)
+        VALUES ('default_link', $1)
+        ON CONFLICT (key) DO UPDATE SET value = $1
+      `, [default_link]);
     }
 
-    // Handle promocod one_per_user setting separately
-    if (key === 'promocod_one_per_user') {
+    // Update one_per_user
+    if (one_per_user !== undefined) {
       await query(`
         INSERT INTO promocod_settings (one_per_user)
         VALUES ($1)
-      `, [value === 'true' || value === true]);
-    } else {
-      await query(`
-        INSERT INTO bot_settings (key, value)
-        VALUES ($1, $2)
-        ON CONFLICT (key) DO UPDATE SET value = $2
-      `, [key, value]);
+        ON CONFLICT (id) DO UPDATE SET one_per_user = $1
+      `, [one_per_user]);
     }
 
     return NextResponse.json({
       success: true,
-      message: 'Setting updated successfully'
+      message: 'Settings updated successfully'
     });
   } catch (error) {
     console.error('Settings POST Error:', error);
