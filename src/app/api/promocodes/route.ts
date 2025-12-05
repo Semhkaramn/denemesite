@@ -14,9 +14,12 @@ export async function GET() {
         s.sched_time,
         s.assigned,
         s.assigned_user,
-        s.dm_sent
+        s.dm_sent,
+        m.username as used_by_username,
+        m.first_name as used_by_first_name
       FROM codes c
       LEFT JOIN schedule s ON c.code = s.code
+      LEFT JOIN message_stats m ON c.used_by = m.user_id
       ORDER BY c.created_at DESC
     `);
 
