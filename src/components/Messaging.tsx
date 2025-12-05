@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
-import { Send, Users, Image, Link2, Square, Code, UserCheck, Search, X } from 'lucide-react';
+import { Send, Users, Image, Link2, Square, Code, UserCheck, Search, X, Upload, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatTR } from '@/lib/date-utils';
 
@@ -37,8 +37,10 @@ export default function Messaging() {
   const [messageHTML, setMessageHTML] = useState('');
   const [useHTML, setUseHTML] = useState(false);
   const [parseMode, setParseMode] = useState<'HTML' | 'Markdown'>('HTML');
-  const [disableWebPagePreview] = useState(true); // Always disabled
+  const [disableWebPagePreview] = useState(true);
   const [photoUrl, setPhotoUrl] = useState('');
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string>('');
   const [buttons, setButtons] = useState<Array<{text: string, url: string}>>([]);
 
   // Selected users
@@ -105,10 +107,71 @@ export default function Messaging() {
     setMessageHTML(messageHTML + template);
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        toast.error('Dosya boyutu 10MB\'dan küçük olmalıdır');
+        return;
+      }
+      if (!file.type.startsWith('image/')) {
+        toast.error('Sadece resim dosyaları yüklenebilir');
+        return;
+      }
+      setPhotoFile(file);
+      setPhotoUrl(''); // Clear URL if file is selected
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleFileDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('Dosya boyutu 10MB\'dan küçük olmalıdır');
+        return;
+      }
+      if (!file.type.startsWith('image/')) {
+        toast.error('Sadece resim dosyaları yüklenebilir');
+        return;
+      }
+      setPhotoFile(file);
+      setPhotoUrl('');
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const clearPhoto = () => {
+    setPhotoFile(null);
+    setPhotoUrl('');
+    setPhotoPreview('');
+  };
+
+  const uploadPhoto = async (file: File): Promise<string> => {
+    // Convert to base64 or upload to a service
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        resolve(reader.result as string);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleSendMessage = async () => {
     const message = useHTML ? messageHTML : messageText;
 
-    if (!message.trim() && !photoUrl) {
+    if (!message.trim() && !photoUrl && !photoFile) {
       toast.error('Lütfen bir mesaj veya fotoğraf ekleyin!');
       return;
     }
@@ -121,25 +184,35 @@ export default function Messaging() {
     setLoading(true);
 
     try {
+      // Upload photo file if exists
+      let finalPhotoUrl = photoUrl;
+      if (photoFile) {
+        finalPhotoUrl = await uploadPhoto(photoFile);
+      }
+
       // Prepare inline keyboard if buttons exist
       let inlineKeyboard = null;
       if (buttons.length > 0) {
-        inlineKeyboard = [buttons.map(btn => ({
-          text: btn.text,
-          url: btn.url
-        }))];
+        // Filter out empty buttons
+        const validButtons = buttons.filter(btn => btn.text.trim() && btn.url.trim());
+        if (validButtons.length > 0) {
+          inlineKeyboard = [validButtons.map(btn => ({
+            text: btn.text,
+            url: btn.url
+          }))];
+        }
       }
 
       const response = await fetch('/api/messages/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: message || (photoUrl ? 'Fotoğraf' : ''),
+          message: message || (finalPhotoUrl ? 'Fotoğraf' : ''),
           parseMode,
           sendToAll: messageType === 'all',
           userIds: messageType === 'selected' ? Array.from(selectedUsers) : undefined,
           disableWebPagePreview,
-          photoUrl: photoUrl || undefined,
+          photoUrl: finalPhotoUrl || undefined,
           inlineKeyboard
         })
       });
@@ -150,7 +223,7 @@ export default function Messaging() {
         toast.success(`Mesaj başarıyla gönderildi! (${data.sentCount} kullanıcı)`);
         setMessageText('');
         setMessageHTML('');
-        setPhotoUrl('');
+        clearPhoto();
         setButtons([]);
         setSelectedUsers(new Set());
         fetchMessageHistory();
@@ -287,28 +360,75 @@ export default function Messaging() {
             </div>
           </div>
 
-          {/* Photo URL */}
+          {/* Photo Upload */}
           <div className="space-y-2">
-            <Label htmlFor="photoUrl">Fotoğraf URL (Opsiyonel)</Label>
-            <div className="flex gap-2">
-              <Input
-                id="photoUrl"
-                placeholder="https://example.com/photo.jpg"
-                value={photoUrl}
-                onChange={(e) => setPhotoUrl(e.target.value)}
-              />
-              {photoUrl && (
+            <Label>Fotoğraf (Opsiyonel)</Label>
+
+            {!photoPreview && !photoUrl && (
+              <div
+                onDrop={handleFileDrop}
+                onDragOver={(e) => e.preventDefault()}
+                className="border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-lg p-8 text-center hover:border-zinc-400 dark:hover:border-zinc-600 transition-colors cursor-pointer"
+              >
+                <input
+                  type="file"
+                  id="photoFile"
+                  accept="image/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <label htmlFor="photoFile" className="cursor-pointer">
+                  <Upload className="w-12 h-12 mx-auto mb-3 text-zinc-400" />
+                  <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                    Resim yüklemek için tıklayın veya sürükleyin
+                  </p>
+                  <p className="text-xs text-zinc-500">
+                    PNG, JPG, GIF (Maks. 10MB)
+                  </p>
+                </label>
+              </div>
+            )}
+
+            {/* Or URL Input */}
+            {!photoPreview && !photoFile && (
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-zinc-300 dark:border-zinc-700" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white dark:bg-zinc-950 px-2 text-zinc-500">Veya URL</span>
+                </div>
+              </div>
+            )}
+
+            {!photoPreview && !photoFile && (
+              <div className="flex gap-2">
+                <Input
+                  id="photoUrl"
+                  placeholder="https://example.com/photo.jpg"
+                  value={photoUrl}
+                  onChange={(e) => setPhotoUrl(e.target.value)}
+                />
+              </div>
+            )}
+
+            {/* Preview */}
+            {(photoPreview || photoUrl) && (
+              <div className="relative border rounded-lg overflow-hidden">
+                <img
+                  src={photoPreview || photoUrl}
+                  alt="Preview"
+                  className="w-full max-h-64 object-contain bg-zinc-100 dark:bg-zinc-900"
+                />
                 <Button
-                  variant="outline"
-                  onClick={() => setPhotoUrl('')}
+                  variant="destructive"
+                  size="sm"
+                  className="absolute top-2 right-2"
+                  onClick={clearPhoto}
                 >
-                  <X className="w-4 h-4" />
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  Kaldır
                 </Button>
-              )}
-            </div>
-            {photoUrl && (
-              <div className="mt-2 border rounded-lg overflow-hidden">
-                <img src={photoUrl} alt="Preview" className="w-full max-h-48 object-contain" />
               </div>
             )}
           </div>
@@ -514,12 +634,29 @@ export default function Messaging() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-zinc-400" />
                 <Input
-                  placeholder="Kullanıcı ara..."
+                  placeholder="İsim, kullanıcı adı veya ID ile ara..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10"
                 />
               </div>
+              {searchQuery && (
+                <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+                  <Search className="w-4 h-4" />
+                  <span>{filteredUsers.length} kullanıcı bulundu</span>
+                  {searchQuery && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSearchQuery('')}
+                      className="h-6 px-2"
+                    >
+                      <X className="w-3 h-3 mr-1" />
+                      Temizle
+                    </Button>
+                  )}
+                </div>
+              )}
               <div className="flex gap-2">
                 <Button
                   variant="outline"
