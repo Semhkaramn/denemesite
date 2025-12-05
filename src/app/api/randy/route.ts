@@ -68,12 +68,25 @@ export async function POST(request: Request) {
 
     const scheduleId = scheduleResult.rows[0].id;
 
-    // Create slots
+    // Create slots with random distribution (like promocode system)
     const start = new Date(startTime);
-    const intervalMs = (distributionHours * 60 * 60 * 1000) / winnerCount;
+    const totalSeconds = distributionHours * 3600;
+    const sliceLength = Math.floor(totalSeconds / winnerCount);
+    const chosenTimes: Date[] = [];
 
     for (let i = 0; i < winnerCount; i++) {
-      const slotTime = new Date(start.getTime() + (intervalMs * i));
+      const sliceStart = i * sliceLength;
+      const sliceEnd = i < winnerCount - 1 ? sliceStart + sliceLength - 1 : totalSeconds - 1;
+      const randomSeconds = Math.floor(Math.random() * (sliceEnd - sliceStart + 1)) + sliceStart;
+      const slotTime = new Date(start.getTime() + randomSeconds * 1000);
+      chosenTimes.push(slotTime);
+    }
+
+    // Sort times chronologically
+    chosenTimes.sort((a, b) => a.getTime() - b.getTime());
+
+    // Insert all slots
+    for (const slotTime of chosenTimes) {
       await query(`
         INSERT INTO randy_slots (schedule_id, sched_time, random_key)
         VALUES ($1, $2, $3)
