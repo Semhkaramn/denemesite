@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Trash2, Eye, Trophy, Users } from 'lucide-react';
-import { format } from 'date-fns';
+import { formatTR } from '@/lib/date-utils';
 
 interface RandySchedule {
   id: number;
@@ -329,7 +329,7 @@ export default function Randy() {
                     </div>
                   </TableCell>
                   <TableCell className="text-sm text-zinc-500">
-                    {format(new Date(schedule.start_time), 'dd.MM.yyyy HH:mm')}
+                    {formatTR(new Date(schedule.start_time))}
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
@@ -385,7 +385,7 @@ export default function Randy() {
                   <TableRow key={slot.id}>
                     <TableCell>{index + 1}</TableCell>
                     <TableCell className="text-sm">
-                      {format(new Date(slot.sched_time), 'dd.MM.yyyy HH:mm')}
+                      {formatTR(new Date(slot.sched_time))}
                     </TableCell>
                     <TableCell>
                       {slot.assigned ? (
