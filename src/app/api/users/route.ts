@@ -6,16 +6,36 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
+    const search = searchParams.get('search') || '';
     const offset = (page - 1) * limit;
+
+    let whereClause = '';
+    const params: any[] = [limit, offset];
+
+    if (search) {
+      // Search by username, first_name or user_id
+      whereClause = `WHERE
+        username ILIKE $3 OR
+        first_name ILIKE $3 OR
+        CAST(user_id AS TEXT) LIKE $3
+      `;
+      params.push(`%${search}%`);
+    }
 
     const result = await query(`
       SELECT *
       FROM message_stats
+      ${whereClause}
       ORDER BY message_count DESC
       LIMIT $1 OFFSET $2
-    `, [limit, offset]);
+    `, params);
 
-    const countResult = await query('SELECT COUNT(*) as total FROM message_stats');
+    const countQuery = search
+      ? `SELECT COUNT(*) as total FROM message_stats ${whereClause}`
+      : 'SELECT COUNT(*) as total FROM message_stats';
+
+    const countParams = search ? [`%${search}%`] : [];
+    const countResult = await query(countQuery, countParams);
     const total = parseInt(countResult.rows[0].total);
 
     return NextResponse.json({
