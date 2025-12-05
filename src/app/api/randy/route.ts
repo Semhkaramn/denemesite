@@ -85,9 +85,9 @@ export async function POST(request: Request) {
       message: 'Randy schedule created successfully',
       scheduleId
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Randy POST Error:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
   }
 }
 
@@ -106,8 +106,8 @@ export async function DELETE(request: Request) {
       success: true,
       message: 'Randy schedule deleted successfully'
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Randy DELETE Error:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
   }
 }
