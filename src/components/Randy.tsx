@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Switch } from '@/components/ui/switch';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Plus, Trash2, Eye, Trophy, Users } from 'lucide-react';
-import { formatTR } from '@/lib/date-utils';
+import { formatTR, nowTRForInput, localInputToISO } from '@/lib/date-utils';
 import { toast } from 'sonner';
 
 interface RandySchedule {
@@ -64,6 +64,9 @@ export default function Randy() {
 
   useEffect(() => {
     fetchSchedules();
+    // Set default start time to current Turkish time
+    setStartTime(nowTRForInput());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -104,6 +107,9 @@ export default function Randy() {
       return;
     }
 
+    // Convert local Turkish time to UTC for database
+    const startTimeUTC = localInputToISO(startTime);
+
     const addPromise = fetch('/api/randy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -116,7 +122,7 @@ export default function Randy() {
         sendAnnouncement,
         pinMessage: sendAnnouncement ? pinMessage : false,
         onePerUser,
-        startTime
+        startTime: startTimeUTC
       })
     }).then(async (response) => {
       const data = await response.json();
@@ -130,7 +136,7 @@ export default function Randy() {
     });
 
     toast.promise(addPromise, {
-      loading: 'Çekiliş oluşturuluyor...',
+      loading: 'Çekiliş oluşturuyor...',
       success: 'Randy çekilişi oluşturuldu!',
       error: (err) => `Hata: ${err.message}`,
     });
@@ -173,7 +179,7 @@ export default function Randy() {
     setDistributionHours('24');
     setPrizeText('');
     setMinMessages('0');
-    setStartTime('');
+    setStartTime(nowTRForInput());
     setSendAnnouncement(true);
     setPinMessage(true);
     setOnePerUser(true);
