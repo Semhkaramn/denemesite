@@ -4,7 +4,7 @@ import { query } from '@/lib/db';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { hours, onePerUser, sendAnnouncement, pinMessage } = body;
+    const { hours, codesToDistribute, onePerUser, sendAnnouncement, pinMessage } = body;
 
     if (!hours || hours <= 0) {
       return NextResponse.json({
@@ -20,13 +20,24 @@ export async function POST(request: Request) {
       ORDER BY created_at
     `);
 
-    const codes = unusedResult.rows.map(r => r.code);
+    let codes = unusedResult.rows.map(r => r.code);
 
     if (codes.length === 0) {
       return NextResponse.json({
         success: false,
         error: 'No unused codes available'
       }, { status: 400 });
+    }
+
+    // Limit to requested number of codes if specified
+    if (codesToDistribute && codesToDistribute > 0) {
+      if (codesToDistribute > codes.length) {
+        return NextResponse.json({
+          success: false,
+          error: `Only ${codes.length} unused codes available`
+        }, { status: 400 });
+      }
+      codes = codes.slice(0, codesToDistribute);
     }
 
     // Save one_per_user setting
