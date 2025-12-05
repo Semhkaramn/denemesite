@@ -57,6 +57,7 @@ export default function Randy() {
   const [distributionHours, setDistributionHours] = useState('24');
   const [prizeText, setPrizeText] = useState('');
   const [minMessages, setMinMessages] = useState('0');
+  const [messagePeriod, setMessagePeriod] = useState<'none' | 'daily' | 'weekly' | 'monthly'>('none');
   const [startTime, setStartTime] = useState('');
   const [sendAnnouncement, setSendAnnouncement] = useState(true);
   const [pinMessage, setPinMessage] = useState(true);
@@ -118,7 +119,7 @@ export default function Randy() {
         distributionHours: parseInt(distributionHours),
         prizeText,
         minMessages: parseInt(minMessages) || 0,
-        messagePeriod: 'none',
+        messagePeriod: messagePeriod,
         sendAnnouncement,
         pinMessage: sendAnnouncement ? pinMessage : false,
         onePerUser,
@@ -179,6 +180,7 @@ export default function Randy() {
     setDistributionHours('24');
     setPrizeText('');
     setMinMessages('0');
+    setMessagePeriod('none');
     setStartTime(nowTRForInput());
     setSendAnnouncement(true);
     setPinMessage(true);
@@ -282,6 +284,23 @@ export default function Randy() {
                   onChange={(e) => setMinMessages(e.target.value)}
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="messagePeriod">Mesaj Şartı Periyodu</Label>
+                <select
+                  id="messagePeriod"
+                  value={messagePeriod}
+                  onChange={(e) => setMessagePeriod(e.target.value as 'none' | 'daily' | 'weekly' | 'monthly')}
+                  className="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm"
+                >
+                  <option value="none">Şartsız</option>
+                  <option value="daily">Günlük Mesaj Şartı</option>
+                  <option value="weekly">Haftalık Mesaj Şartı</option>
+                  <option value="monthly">Aylık Mesaj Şartı</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="startTime">Başlangıç Zamanı</Label>
                 <Input
