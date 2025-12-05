@@ -343,19 +343,30 @@ export default function Promocodes() {
                 <Switch
                   id="sendAnnouncement"
                   checked={sendAnnouncement}
-                  onCheckedChange={setSendAnnouncement}
+                  onCheckedChange={(checked) => {
+                    setSendAnnouncement(checked);
+                    if (!checked) {
+                      setPinMessage(false);
+                    }
+                  }}
                 />
               </div>
-              {sendAnnouncement && (
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="pinMessage">Mesajı Sabitle</Label>
-                  <Switch
-                    id="pinMessage"
-                    checked={pinMessage}
-                    onCheckedChange={setPinMessage}
-                  />
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col">
+                  <Label htmlFor="pinMessage" className={!sendAnnouncement ? 'text-zinc-400' : ''}>
+                    Duyuru Mesajını Sabitle
+                  </Label>
+                  {!sendAnnouncement && (
+                    <span className="text-xs text-zinc-500">Önce duyuru gönderilmeli</span>
+                  )}
                 </div>
-              )}
+                <Switch
+                  id="pinMessage"
+                  checked={pinMessage}
+                  onCheckedChange={setPinMessage}
+                  disabled={!sendAnnouncement}
+                />
+              </div>
               <div className="bg-zinc-100 dark:bg-zinc-800 p-3 rounded-lg text-sm">
                 <p className="font-medium mb-1">Özet:</p>
                 <p>• Toplam Kullanılmamış Kod: {unusedCodesCount}</p>
