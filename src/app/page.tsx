@@ -12,7 +12,8 @@ import {
   UserPlus,
   Activity,
   TrendingUp,
-  Settings
+  Settings,
+  Send
 } from 'lucide-react';
 import Dashboard from '@/components/Dashboard';
 import Promocodes from '@/components/Promocodes';
@@ -20,6 +21,7 @@ import Randy from '@/components/Randy';
 import Invites from '@/components/Invites';
 import UserStats from '@/components/UserStats';
 import SettingsPage from '@/components/SettingsPage';
+import Messaging from '@/components/Messaging';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -46,10 +48,14 @@ export default function Home() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 h-auto p-1 bg-white dark:bg-zinc-800 shadow-lg">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-7 h-auto p-1 bg-white dark:bg-zinc-800 shadow-lg">
             <TabsTrigger value="dashboard" className="gap-2 py-3">
               <TrendingUp className="w-4 h-4" />
               <span className="hidden sm:inline">Dashboard</span>
+            </TabsTrigger>
+            <TabsTrigger value="messaging" className="gap-2 py-3">
+              <Send className="w-4 h-4" />
+              <span className="hidden sm:inline">Mesaj</span>
             </TabsTrigger>
             <TabsTrigger value="promocodes" className="gap-2 py-3">
               <Gift className="w-4 h-4" />
@@ -75,6 +81,10 @@ export default function Home() {
 
           <TabsContent value="dashboard" className="space-y-6">
             <Dashboard />
+          </TabsContent>
+
+          <TabsContent value="messaging" className="space-y-6">
+            <Messaging />
           </TabsContent>
 
           <TabsContent value="promocodes" className="space-y-6">
