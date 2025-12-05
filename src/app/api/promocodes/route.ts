@@ -47,9 +47,9 @@ export async function POST(request: Request) {
       success: true,
       message: 'Promocode added successfully'
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Promocodes POST Error:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
   }
 }
 
@@ -68,8 +68,8 @@ export async function DELETE(request: Request) {
       success: true,
       message: 'Promocode deleted successfully'
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Promocodes DELETE Error:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
   }
 }
