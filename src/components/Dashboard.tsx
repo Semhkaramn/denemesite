@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Users, MessageSquare, Gift, Trophy, UserPlus, Activity } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { format } from 'date-fns';
+import { formatTR } from '@/lib/date-utils';
 
 interface TopUser {
   user_id: number;
@@ -170,7 +170,7 @@ export default function Dashboard() {
                     <Badge variant="secondary">{user.message_count.toLocaleString()}</Badge>
                   </TableCell>
                   <TableCell className="text-sm text-zinc-500">
-                    {user.last_message_at ? format(new Date(user.last_message_at), 'dd.MM.yyyy HH:mm') : '-'}
+                    {user.last_message_at ? formatTR(new Date(user.last_message_at), 'dd.MM.yyyy HH:mm') : '-'}
                   </TableCell>
                 </TableRow>
               ))}
@@ -191,11 +191,11 @@ export default function Dashboard() {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
                 dataKey="date"
-                tickFormatter={(value) => format(new Date(value), 'dd.MM')}
+                tickFormatter={(value) => formatTR(new Date(value), 'dd.MM')}
               />
               <YAxis />
               <Tooltip
-                labelFormatter={(value) => format(new Date(value), 'dd MMMM yyyy')}
+                labelFormatter={(value) => formatTR(new Date(value), 'dd MMMM yyyy')}
               />
               <Bar dataKey="count" fill="#3b82f6" radius={[8, 8, 0, 0]} />
             </BarChart>
