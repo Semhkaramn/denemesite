@@ -158,24 +158,6 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Database Info */}
-      <Card className="border-0 shadow-lg">
-        <CardHeader>
-          <CardTitle>Veritabanı Bilgisi</CardTitle>
-          <CardDescription>PostgreSQL bağlantı durumu</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-3">
-            <Database className="w-8 h-8 text-green-600" />
-            <div>
-              <p className="font-medium">Bağlantı Aktif</p>
-              <p className="text-sm text-zinc-500">PostgreSQL veritabanına bağlı</p>
-            </div>
-            <Badge variant="success" className="ml-auto">Çalışıyor</Badge>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* DANGER ZONE - Database Reset */}
       <Card className="border-0 shadow-lg border-2 border-red-500 bg-red-50 dark:bg-red-950/20">
         <CardHeader>
@@ -220,58 +202,13 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Environment Variables */}
-      <Card className="border-0 shadow-lg">
-        <CardHeader>
-          <CardTitle>Ortam Değişkenleri</CardTitle>
-          <CardDescription>Aktif ayarlar ve konfigürasyonlar</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center p-3 bg-zinc-50 dark:bg-zinc-900 rounded-lg">
-              <span className="text-sm font-medium">DATABASE_URL</span>
-              <Badge variant="success">Ayarlı</Badge>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-zinc-50 dark:bg-zinc-900 rounded-lg">
-              <span className="text-sm font-medium">BOT_TOKEN</span>
-              <Badge variant="success">Ayarlı</Badge>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-zinc-50 dark:bg-zinc-900 rounded-lg">
-              <span className="text-sm font-medium">ADMIN_PASSWORD</span>
-              <Badge variant="success">Ayarlı</Badge>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Instructions */}
-      <Card className="border-0 shadow-lg bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
-        <CardHeader>
-          <CardTitle className="text-blue-900 dark:text-blue-100">Kurulum Talimatları</CardTitle>
-        </CardHeader>
-        <CardContent className="text-blue-900 dark:text-blue-100 space-y-2">
-          <p className="text-sm">
-            <strong>1.</strong> <code className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded">.env.local</code> dosyasını düzenleyin
-          </p>
-          <p className="text-sm">
-            <strong>2.</strong> <code className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded">DATABASE_URL</code> değişkenini PostgreSQL bağlantı stringi ile değiştirin
-          </p>
-          <p className="text-sm">
-            <strong>3.</strong> Bot tokenınızı <code className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded">BOT_TOKEN</code> değişkenine ekleyin
-          </p>
-          <p className="text-sm">
-            <strong>4.</strong> Geliştirme sunucusunu başlatın: <code className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded">bun run dev</code>
-          </p>
-        </CardContent>
-      </Card>
-
       {/* Confirmation Dialogs */}
       <ConfirmDialog
         open={showFirstResetConfirm}
         onOpenChange={setShowFirstResetConfirm}
         onConfirm={handleFirstConfirmReset}
         title="⚠️ BİRİNCİ ONAY"
-        description="TÜM VERİTABANINI SİLMEK ÜZERE OLDUĞUNUZDAN EMİN MİSİNİZ?\n\nBu işlem:\n• Tüm kullanıcı verilerini\n• Tüm promocodları\n• Tüm davet linklerini\n• Tüm çekilişleri\n• Tüm ayarları\n\nKALICI OLARAK SİLECEKTİR!\n\nDevam etmek istiyorsanız 'Evet, Devam Et' butonuna basın."
+        description="TÜM VERİTABANINI SİLMEK ÜZERE OLDUĞUNUZDAN EMİN MİSİNİZ?"
         confirmText="Evet, Devam Et"
         cancelText="İptal"
         variant="destructive"
@@ -282,7 +219,7 @@ export default function SettingsPage() {
         onOpenChange={setShowSecondResetConfirm}
         onConfirm={handleDatabaseReset}
         title="🚨 İKİNCİ VE SON ONAY"
-        description="BU SON UYARIDIR!\n\nTÜM VERİTABANI ŞİMDİ SİLİNECEK!\n\nBu işlem GERİ ALINAMAZ!\n\nEmin misiniz?"
+        description="BU SON UYARIDIR! VERİTABANI ŞİMDİ SİLİNECEK! Emin misiniz?"
         confirmText="EVET, TÜM VERİTABANINI SİL"
         cancelText="HAYIR, İPTAL ET"
         variant="destructive"
@@ -290,3 +227,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+
