@@ -10,14 +10,18 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Plus, Trash2, Clock, CheckCircle, XCircle, Upload, Calendar, Trash, Settings } from 'lucide-react';
-import { format } from 'date-fns';
+import { formatTR } from '@/lib/date-utils';
+import { toast } from 'sonner';
 
 interface Promocode {
   code: string;
   created_at: string;
   used: boolean;
   used_by: number | null;
+  used_by_username: string | null;
+  used_by_first_name: string | null;
   used_at: string | null;
   min_messages: number;
   sched_time: string | null;
@@ -31,6 +35,7 @@ export default function Promocodes() {
   const [loading, setLoading] = useState(true);
   const [bulkCodes, setBulkCodes] = useState('');
   const [planHours, setPlanHours] = useState('24');
+  const [codesToDistribute, setCodesToDistribute] = useState('');
   const [onePerUser, setOnePerUser] = useState(true);
   const [sendAnnouncement, setSendAnnouncement] = useState(true);
   const [pinMessage, setPinMessage] = useState(true);
@@ -38,6 +43,8 @@ export default function Promocodes() {
   const [showBulkDialog, setShowBulkDialog] = useState(false);
   const [showPlanDialog, setShowPlanDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showPlanConfirm, setShowPlanConfirm] = useState(false);
 
   useEffect(() => {
     fetchCodes();
@@ -53,6 +60,7 @@ export default function Promocodes() {
       }
     } catch (error) {
       console.error('Failed to fetch codes:', error);
+      toast.error('Kodlar yüklenirken hata oluştu');
     } finally {
       setLoading(false);
     }
@@ -75,115 +83,121 @@ export default function Promocodes() {
     const codesArray = bulkCodes.split('\n').map(c => c.trim()).filter(c => c.length > 0);
 
     if (codesArray.length === 0) {
-      alert('Lütfen en az bir kod girin!');
+      toast.error('Lütfen en az bir kod girin!');
       return;
     }
 
-    try {
-      const response = await fetch('/api/promocodes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ codes: codesArray })
-      });
-
+    const uploadPromise = fetch('/api/promocodes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ codes: codesArray })
+    }).then(async (response) => {
       const data = await response.json();
       if (data.success) {
-        alert(`${codesArray.length} kod başarıyla yüklendi!`);
         setBulkCodes('');
         setShowBulkDialog(false);
         fetchCodes();
-      } else {
-        alert('Hata: ' + data.error);
+        return data;
       }
-    } catch (error) {
-      console.error('Failed to upload codes:', error);
-      alert('Kodlar yüklenirken hata oluştu!');
-    }
+      throw new Error(data.error || 'Yükleme başarısız');
+    });
+
+    toast.promise(uploadPromise, {
+      loading: `${codesArray.length} kod yükleniyor...`,
+      success: `${codesArray.length} kod başarıyla yüklendi!`,
+      error: (err) => `Hata: ${err.message}`,
+    });
   };
 
   const handleCreatePlan = async () => {
     const unusedCodes = codes.filter(c => !c.used && !c.assigned);
+    const distributeCount = codesToDistribute ? parseInt(codesToDistribute) : unusedCodes.length;
 
     if (unusedCodes.length === 0) {
-      alert('Planlamak için kullanılmamış kod bulunmuyor!');
+      toast.error('Planlamak için kullanılmamış kod bulunmuyor!');
       return;
     }
 
-    if (!confirm(`${unusedCodes.length} kod için ${planHours} saatlik dağıtım planı oluşturulsun mu?`)) {
+    if (distributeCount <= 0 || distributeCount > unusedCodes.length) {
+      toast.error(`Geçerli bir sayı girin (1-${unusedCodes.length})`);
       return;
     }
 
-    try {
-      const response = await fetch('/api/promocodes/schedule', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          hours: parseInt(planHours),
-          onePerUser,
-          sendAnnouncement,
-          pinMessage
-        })
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        alert('Dağıtım planı oluşturuldu!');
-        setShowPlanDialog(false);
-        fetchCodes();
-      } else {
-        alert('Hata: ' + data.error);
-      }
-    } catch (error) {
-      console.error('Failed to create plan:', error);
-      alert('Plan oluşturulurken hata oluştu!');
-    }
+    setShowPlanConfirm(true);
   };
 
-  const handleReset = async () => {
-    if (!confirm('TÜM KODLARI VE PLANI SİLMEK İSTEDİĞİNİZE EMİN MİSİNİZ?\n\nBu işlem geri alınamaz!')) {
-      return;
-    }
+  const confirmCreatePlan = async () => {
+    const unusedCodes = codes.filter(c => !c.used && !c.assigned);
+    const distributeCount = codesToDistribute ? parseInt(codesToDistribute) : unusedCodes.length;
 
-    try {
-      const response = await fetch('/api/promocodes/reset', {
-        method: 'POST'
-      });
-
+    const planPromise = fetch('/api/promocodes/schedule', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        hours: parseInt(planHours),
+        codesToDistribute: distributeCount,
+        onePerUser,
+        sendAnnouncement,
+        pinMessage
+      })
+    }).then(async (response) => {
       const data = await response.json();
       if (data.success) {
-        alert('Tüm kodlar ve plan silindi!');
+        setShowPlanDialog(false);
         fetchCodes();
-      } else {
-        alert('Hata: ' + data.error);
+        return data;
       }
-    } catch (error) {
-      console.error('Failed to reset:', error);
-      alert('Reset işlemi başarısız!');
-    }
+      throw new Error(data.error || 'Plan oluşturulamadı');
+    });
+
+    toast.promise(planPromise, {
+      loading: 'Dağıtım planı oluşturuluyor...',
+      success: (data) => `${data.codesCount} kod için plan oluşturuldu!`,
+      error: (err) => `Hata: ${err.message}`,
+    });
+  };
+
+  const confirmReset = async () => {
+    const resetPromise = fetch('/api/promocodes/reset', {
+      method: 'POST'
+    }).then(async (response) => {
+      const data = await response.json();
+      if (data.success) {
+        fetchCodes();
+        return data;
+      }
+      throw new Error(data.error || 'Sıfırlama başarısız');
+    });
+
+    toast.promise(resetPromise, {
+      loading: 'Tüm kodlar siliniyor...',
+      success: 'Tüm kodlar ve plan silindi!',
+      error: (err) => `Hata: ${err.message}`,
+    });
   };
 
   const handleSaveSettings = async () => {
-    try {
-      const response = await fetch('/api/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          default_link: defaultLink,
-          one_per_user: onePerUser
-        })
-      });
-
+    const savePromise = fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        default_link: defaultLink,
+        one_per_user: onePerUser
+      })
+    }).then(async (response) => {
       const data = await response.json();
       if (data.success) {
-        alert('Ayarlar kaydedildi!');
         setShowSettingsDialog(false);
-      } else {
-        alert('Hata: ' + data.error);
+        return data;
       }
-    } catch (error) {
-      console.error('Failed to save settings:', error);
-      alert('Ayarlar kaydedilemedi!');
-    }
+      throw new Error(data.error || 'Ayarlar kaydedilemedi');
+    });
+
+    toast.promise(savePromise, {
+      loading: 'Ayarlar kaydediliyor...',
+      success: 'Ayarlar başarıyla kaydedildi!',
+      error: (err) => `Hata: ${err.message}`,
+    });
   };
 
   if (loading) {
@@ -193,6 +207,7 @@ export default function Promocodes() {
   const activeCount = codes.filter(c => !c.used).length;
   const usedCount = codes.filter(c => c.used).length;
   const scheduledCount = codes.filter(c => c.sched_time && !c.assigned).length;
+  const unusedCodesCount = codes.filter(c => !c.used && !c.assigned).length;
 
   return (
     <div className="space-y-6">
@@ -302,6 +317,19 @@ export default function Promocodes() {
                   onChange={(e) => setPlanHours(e.target.value)}
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="codesToDistribute">
+                  Kaç Kod Dağıtılsın? (Boş bırakılırsa tümü: {unusedCodesCount})
+                </Label>
+                <Input
+                  id="codesToDistribute"
+                  type="number"
+                  placeholder={`Maksimum: ${unusedCodesCount}`}
+                  value={codesToDistribute}
+                  onChange={(e) => setCodesToDistribute(e.target.value)}
+                  max={unusedCodesCount}
+                />
+              </div>
               <div className="flex items-center justify-between">
                 <Label htmlFor="onePerUser">Kullanıcı Başına 1 Kod</Label>
                 <Switch
@@ -330,7 +358,8 @@ export default function Promocodes() {
               )}
               <div className="bg-zinc-100 dark:bg-zinc-800 p-3 rounded-lg text-sm">
                 <p className="font-medium mb-1">Özet:</p>
-                <p>• Kod Sayısı: {codes.filter(c => !c.used && !c.assigned).length}</p>
+                <p>• Toplam Kullanılmamış Kod: {unusedCodesCount}</p>
+                <p>• Dağıtılacak Kod: {codesToDistribute || unusedCodesCount}</p>
                 <p>• Süre: {planHours} saat</p>
                 <p>• Her kullanıcı: {onePerUser ? '1 kod' : 'Sınırsız'}</p>
               </div>
@@ -390,7 +419,7 @@ export default function Promocodes() {
           </DialogContent>
         </Dialog>
 
-        <Button variant="destructive" onClick={handleReset}>
+        <Button variant="destructive" onClick={() => setShowResetConfirm(true)}>
           <Trash className="w-4 h-4 mr-2" />
           Tümünü Sıfırla
         </Button>
@@ -410,7 +439,8 @@ export default function Promocodes() {
                 <TableHead>Durum</TableHead>
                 <TableHead>Zamanlama</TableHead>
                 <TableHead>Atanan</TableHead>
-                <TableHead>Kullanılan</TableHead>
+                <TableHead>Kullanan</TableHead>
+                <TableHead>Kullanım Tarihi</TableHead>
                 <TableHead>Oluşturulma</TableHead>
               </TableRow>
             </TableHeader>
@@ -430,7 +460,7 @@ export default function Promocodes() {
                   <TableCell className="text-sm">
                     {code.sched_time ? (
                       <span className="text-blue-600 dark:text-blue-400">
-                        {format(new Date(code.sched_time), 'dd.MM.yyyy HH:mm')}
+                        {formatTR(code.sched_time, 'dd.MM.yyyy HH:mm')}
                       </span>
                     ) : (
                       <span className="text-zinc-400">-</span>
@@ -445,11 +475,20 @@ export default function Promocodes() {
                       <span className="text-zinc-400">-</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-sm text-zinc-500">
-                    {code.used_at ? format(new Date(code.used_at), 'dd.MM.yyyy HH:mm') : '-'}
+                  <TableCell className="text-sm">
+                    {code.used && code.used_by ? (
+                      <span className="font-medium">
+                        {code.used_by_username ? `@${code.used_by_username}` : code.used_by_first_name || `ID: ${code.used_by}`}
+                      </span>
+                    ) : (
+                      <span className="text-zinc-400">-</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-sm text-zinc-500">
-                    {format(new Date(code.created_at), 'dd.MM.yyyy')}
+                    {code.used_at ? formatTR(code.used_at, 'dd.MM.yyyy HH:mm') : '-'}
+                  </TableCell>
+                  <TableCell className="text-sm text-zinc-500">
+                    {formatTR(code.created_at, 'dd.MM.yyyy')}
                   </TableCell>
                 </TableRow>
               ))}
@@ -462,6 +501,28 @@ export default function Promocodes() {
           )}
         </CardContent>
       </Card>
+
+      {/* Confirm Dialogs */}
+      <ConfirmDialog
+        open={showResetConfirm}
+        onOpenChange={setShowResetConfirm}
+        onConfirm={confirmReset}
+        title="Tüm Kodları Sil"
+        description="TÜM KODLARI VE PLANI SİLMEK İSTEDİĞİNİZE EMİN MİSİNİZ?\n\nBu işlem geri alınamaz!"
+        confirmText="Evet, Sil"
+        cancelText="İptal"
+        variant="destructive"
+      />
+
+      <ConfirmDialog
+        open={showPlanConfirm}
+        onOpenChange={setShowPlanConfirm}
+        onConfirm={confirmCreatePlan}
+        title="Plan Oluştur"
+        description={`${codesToDistribute || unusedCodesCount} kod için ${planHours} saatlik dağıtım planı oluşturulsun mu?`}
+        confirmText="Oluştur"
+        cancelText="İptal"
+      />
     </div>
   );
 }
