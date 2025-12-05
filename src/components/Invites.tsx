@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Eye, UserPlus, Users, Link as LinkIcon } from 'lucide-react';
-import { format } from 'date-fns';
+import { formatTR } from '@/lib/date-utils';
 
 interface InviteLink {
   id: number;
@@ -176,7 +176,7 @@ export default function Invites() {
                     <Badge variant="success">{invite.active_invites || 0}</Badge>
                   </TableCell>
                   <TableCell className="text-sm text-zinc-500">
-                    {format(new Date(invite.created_at), 'dd.MM.yyyy')}
+                    {formatTR(new Date(invite.created_at))}
                   </TableCell>
                   <TableCell>
                     <Button
@@ -241,7 +241,7 @@ export default function Invites() {
                       )}
                     </TableCell>
                     <TableCell className="text-sm text-zinc-500">
-                      {format(new Date(user.joined_at), 'dd.MM.yyyy HH:mm')}
+                      {formatTR(new Date(user.joined_at))}
                     </TableCell>
                     <TableCell>
                       {user.rejoined_count > 0 ? (
@@ -251,7 +251,7 @@ export default function Invites() {
                       )}
                     </TableCell>
                     <TableCell className="text-sm text-zinc-500">
-                      {user.left_at ? format(new Date(user.left_at), 'dd.MM.yyyy') : '-'}
+                      {user.left_at ? formatTR(new Date(user.left_at)) : '-'}
                     </TableCell>
                   </TableRow>
                 ))}
