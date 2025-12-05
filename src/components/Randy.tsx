@@ -8,8 +8,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Switch } from '@/components/ui/switch';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Plus, Trash2, Eye, Trophy, Users } from 'lucide-react';
 import { formatTR } from '@/lib/date-utils';
+import { toast } from 'sonner';
 
 interface RandySchedule {
   id: number;
@@ -46,6 +49,8 @@ export default function Randy() {
   const [selectedSchedule, setSelectedSchedule] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [scheduleToDelete, setScheduleToDelete] = useState<number | null>(null);
 
   // Form states
   const [winnerCount, setWinnerCount] = useState('10');
@@ -53,6 +58,9 @@ export default function Randy() {
   const [prizeText, setPrizeText] = useState('');
   const [minMessages, setMinMessages] = useState('0');
   const [startTime, setStartTime] = useState('');
+  const [sendAnnouncement, setSendAnnouncement] = useState(true);
+  const [pinMessage, setPinMessage] = useState(true);
+  const [onePerUser, setOnePerUser] = useState(true);
 
   useEffect(() => {
     fetchSchedules();
@@ -92,67 +100,72 @@ export default function Randy() {
 
   const handleAddSchedule = async () => {
     if (!winnerCount || !distributionHours || !prizeText || !startTime) {
-      alert('Lütfen tüm zorunlu alanları doldurun!');
+      toast.error('Lütfen tüm zorunlu alanları doldurun!');
       return;
     }
 
-    try {
-      const response = await fetch('/api/randy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          winnerCount: parseInt(winnerCount),
-          distributionHours: parseInt(distributionHours),
-          prizeText,
-          minMessages: parseInt(minMessages) || 0,
-          messagePeriod: 'none',
-          sendAnnouncement: true,
-          pinMessage: true,
-          onePerUser: true,
-          startTime
-        })
-      });
-
+    const addPromise = fetch('/api/randy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        winnerCount: parseInt(winnerCount),
+        distributionHours: parseInt(distributionHours),
+        prizeText,
+        minMessages: parseInt(minMessages) || 0,
+        messagePeriod: 'none',
+        sendAnnouncement,
+        pinMessage: sendAnnouncement ? pinMessage : false,
+        onePerUser,
+        startTime
+      })
+    }).then(async (response) => {
       const data = await response.json();
       if (data.success) {
-        alert('Randy çekilişi oluşturuldu!');
         setShowAddForm(false);
         resetForm();
         fetchSchedules();
-      } else {
-        alert('Hata: ' + data.error);
+        return data;
       }
-    } catch (error) {
-      console.error('Failed to add schedule:', error);
-      alert('Çekiliş oluşturulurken hata oluştu!');
-    }
+      throw new Error(data.error || 'Çekiliş oluşturulamadı');
+    });
+
+    toast.promise(addPromise, {
+      loading: 'Çekiliş oluşturuluyor...',
+      success: 'Randy çekilişi oluşturuldu!',
+      error: (err) => `Hata: ${err.message}`,
+    });
   };
 
-  const handleDeleteSchedule = async (id: number) => {
-    if (!confirm('Bu çekilişi silmek istediğinize emin misiniz?')) {
-      return;
-    }
+  const confirmDeleteSchedule = async () => {
+    if (!scheduleToDelete) return;
 
-    try {
-      const response = await fetch(`/api/randy?id=${id}`, {
-        method: 'DELETE'
-      });
-
+    const deletePromise = fetch(`/api/randy?id=${scheduleToDelete}`, {
+      method: 'DELETE'
+    }).then(async (response) => {
       const data = await response.json();
       if (data.success) {
-        alert('Çekiliş silindi!');
-        if (selectedSchedule === id) {
+        if (selectedSchedule === scheduleToDelete) {
           setSelectedSchedule(null);
           setSlots([]);
         }
         fetchSchedules();
-      } else {
-        alert('Hata: ' + data.error);
+        return data;
       }
-    } catch (error) {
-      console.error('Failed to delete schedule:', error);
-      alert('Çekiliş silinirken hata oluştu!');
-    }
+      throw new Error(data.error || 'Silme başarısız');
+    });
+
+    toast.promise(deletePromise, {
+      loading: 'Çekiliş siliniyor...',
+      success: 'Çekiliş silindi!',
+      error: (err) => `Hata: ${err.message}`,
+    });
+
+    setScheduleToDelete(null);
+  };
+
+  const handleDeleteSchedule = (id: number) => {
+    setScheduleToDelete(id);
+    setShowDeleteConfirm(true);
   };
 
   const resetForm = () => {
@@ -161,6 +174,9 @@ export default function Randy() {
     setPrizeText('');
     setMinMessages('0');
     setStartTime('');
+    setSendAnnouncement(true);
+    setPinMessage(true);
+    setOnePerUser(true);
   };
 
   if (loading) {
@@ -267,6 +283,46 @@ export default function Randy() {
                   type="datetime-local"
                   value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-3 p-4 bg-zinc-50 dark:bg-zinc-900 rounded-lg">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="onePerUser">Kullanıcı Başına 1 Ödül</Label>
+                <Switch
+                  id="onePerUser"
+                  checked={onePerUser}
+                  onCheckedChange={setOnePerUser}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="sendAnnouncement">Gruba Duyuru Gönder</Label>
+                <Switch
+                  id="sendAnnouncement"
+                  checked={sendAnnouncement}
+                  onCheckedChange={(checked) => {
+                    setSendAnnouncement(checked);
+                    if (!checked) {
+                      setPinMessage(false);
+                    }
+                  }}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col">
+                  <Label htmlFor="pinMessage" className={!sendAnnouncement ? 'text-zinc-400' : ''}>
+                    Duyuru Mesajını Sabitle
+                  </Label>
+                  {!sendAnnouncement && (
+                    <span className="text-xs text-zinc-500">Önce duyuru gönderilmeli</span>
+                  )}
+                </div>
+                <Switch
+                  id="pinMessage"
+                  checked={pinMessage}
+                  onCheckedChange={setPinMessage}
+                  disabled={!sendAnnouncement}
                 />
               </div>
             </div>
@@ -427,6 +483,18 @@ export default function Randy() {
           </CardContent>
         </Card>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        onConfirm={confirmDeleteSchedule}
+        title="Çekilişi Sil"
+        description="Bu çekilişi silmek istediğinize emin misiniz? Bu işlem geri alınamaz!"
+        confirmText="Evet, Sil"
+        cancelText="İptal"
+        variant="destructive"
+      />
     </div>
   );
 }
