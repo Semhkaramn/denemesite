@@ -10,7 +10,7 @@ export async function GET(request: Request) {
     const offset = (page - 1) * limit;
 
     let whereClause = '';
-    const params: any[] = [limit, offset];
+    const params: unknown[] = [limit, offset];
 
     if (search) {
       // Search by username, first_name or user_id
