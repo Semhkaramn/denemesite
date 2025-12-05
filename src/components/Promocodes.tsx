@@ -5,9 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Trash2, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
+import { Plus, Trash2, Clock, CheckCircle, XCircle, Upload, Calendar, Trash, Settings } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface Promocode {
@@ -26,12 +29,19 @@ interface Promocode {
 export default function Promocodes() {
   const [codes, setCodes] = useState<Promocode[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newCode, setNewCode] = useState('');
-  const [minMessages, setMinMessages] = useState('0');
-  const [scheduleTime, setScheduleTime] = useState('');
+  const [bulkCodes, setBulkCodes] = useState('');
+  const [planHours, setPlanHours] = useState('24');
+  const [onePerUser, setOnePerUser] = useState(true);
+  const [sendAnnouncement, setSendAnnouncement] = useState(true);
+  const [pinMessage, setPinMessage] = useState(true);
+  const [defaultLink, setDefaultLink] = useState('');
+  const [showBulkDialog, setShowBulkDialog] = useState(false);
+  const [showPlanDialog, setShowPlanDialog] = useState(false);
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
 
   useEffect(() => {
     fetchCodes();
+    fetchSettings();
   }, []);
 
   const fetchCodes = async () => {
@@ -48,9 +58,24 @@ export default function Promocodes() {
     }
   };
 
-  const handleAddCode = async () => {
-    if (!newCode.trim()) {
-      alert('Lütfen bir kod girin!');
+  const fetchSettings = async () => {
+    try {
+      const response = await fetch('/api/settings');
+      const data = await response.json();
+      if (data.success) {
+        setDefaultLink(data.data.default_link || '');
+        setOnePerUser(data.data.one_per_user !== false);
+      }
+    } catch (error) {
+      console.error('Failed to fetch settings:', error);
+    }
+  };
+
+  const handleBulkUpload = async () => {
+    const codesArray = bulkCodes.split('\n').map(c => c.trim()).filter(c => c.length > 0);
+
+    if (codesArray.length === 0) {
+      alert('Lütfen en az bir kod girin!');
       return;
     }
 
@@ -58,49 +83,106 @@ export default function Promocodes() {
       const response = await fetch('/api/promocodes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ codes: codesArray })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        alert(`${codesArray.length} kod başarıyla yüklendi!`);
+        setBulkCodes('');
+        setShowBulkDialog(false);
+        fetchCodes();
+      } else {
+        alert('Hata: ' + data.error);
+      }
+    } catch (error) {
+      console.error('Failed to upload codes:', error);
+      alert('Kodlar yüklenirken hata oluştu!');
+    }
+  };
+
+  const handleCreatePlan = async () => {
+    const unusedCodes = codes.filter(c => !c.used && !c.assigned);
+
+    if (unusedCodes.length === 0) {
+      alert('Planlamak için kullanılmamış kod bulunmuyor!');
+      return;
+    }
+
+    if (!confirm(`${unusedCodes.length} kod için ${planHours} saatlik dağıtım planı oluşturulsun mu?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/promocodes/schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          code: newCode.trim(),
-          minMessages: parseInt(minMessages) || 0,
-          scheduleTime: scheduleTime || null
+          hours: parseInt(planHours),
+          onePerUser,
+          sendAnnouncement,
+          pinMessage
         })
       });
 
       const data = await response.json();
       if (data.success) {
-        alert('Promocod başarıyla eklendi!');
-        setNewCode('');
-        setMinMessages('0');
-        setScheduleTime('');
+        alert('Dağıtım planı oluşturuldu!');
+        setShowPlanDialog(false);
         fetchCodes();
       } else {
         alert('Hata: ' + data.error);
       }
     } catch (error) {
-      console.error('Failed to add code:', error);
-      alert('Kod eklenirken hata oluştu!');
+      console.error('Failed to create plan:', error);
+      alert('Plan oluşturulurken hata oluştu!');
     }
   };
 
-  const handleDeleteCode = async (code: string) => {
-    if (!confirm(`"${code}" kodunu silmek istediğinize emin misiniz?`)) {
+  const handleReset = async () => {
+    if (!confirm('TÜM KODLARI VE PLANI SİLMEK İSTEDİĞİNİZE EMİN MİSİNİZ?\n\nBu işlem geri alınamaz!')) {
       return;
     }
 
     try {
-      const response = await fetch(`/api/promocodes?code=${encodeURIComponent(code)}`, {
-        method: 'DELETE'
+      const response = await fetch('/api/promocodes/reset', {
+        method: 'POST'
       });
 
       const data = await response.json();
       if (data.success) {
-        alert('Promocod silindi!');
+        alert('Tüm kodlar ve plan silindi!');
         fetchCodes();
       } else {
         alert('Hata: ' + data.error);
       }
     } catch (error) {
-      console.error('Failed to delete code:', error);
-      alert('Kod silinirken hata oluştu!');
+      console.error('Failed to reset:', error);
+      alert('Reset işlemi başarısız!');
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          default_link: defaultLink,
+          one_per_user: onePerUser
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        alert('Ayarlar kaydedildi!');
+        setShowSettingsDialog(false);
+      } else {
+        alert('Hata: ' + data.error);
+      }
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      alert('Ayarlar kaydedilemedi!');
     }
   };
 
@@ -159,51 +241,160 @@ export default function Promocodes() {
         </Card>
       </div>
 
-      {/* Add New Code */}
-      <Card className="border-0 shadow-lg">
-        <CardHeader>
-          <CardTitle>Yeni Promocod Ekle</CardTitle>
-          <CardDescription>Tek kod veya zamanlanmış kod ekleyebilirsiniz</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="code">Promocod</Label>
-              <Input
-                id="code"
-                placeholder="ABC123"
-                value={newCode}
-                onChange={(e) => setNewCode(e.target.value)}
+      {/* Action Buttons */}
+      <div className="flex flex-wrap gap-3">
+        <Dialog open={showBulkDialog} onOpenChange={setShowBulkDialog}>
+          <DialogTrigger asChild>
+            <Button>
+              <Upload className="w-4 h-4 mr-2" />
+              Toplu Kod Yükle
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Toplu Kod Yükleme</DialogTitle>
+              <DialogDescription>
+                Her satıra bir kod yazın. Boş satırlar atlanacaktır.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <Textarea
+                placeholder="ABC123&#10;DEF456&#10;GHI789"
+                value={bulkCodes}
+                onChange={(e) => setBulkCodes(e.target.value)}
+                rows={10}
+                className="font-mono"
               />
+              <div className="text-sm text-zinc-500">
+                {bulkCodes.split('\n').filter(c => c.trim()).length} kod girildi
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="minMessages">Min. Mesaj</Label>
-              <Input
-                id="minMessages"
-                type="number"
-                placeholder="0"
-                value={minMessages}
-                onChange={(e) => setMinMessages(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="scheduleTime">Zamanlama (Opsiyonel)</Label>
-              <Input
-                id="scheduleTime"
-                type="datetime-local"
-                value={scheduleTime}
-                onChange={(e) => setScheduleTime(e.target.value)}
-              />
-            </div>
-            <div className="flex items-end">
-              <Button onClick={handleAddCode} className="w-full">
-                <Plus className="w-4 h-4 mr-2" />
-                Ekle
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowBulkDialog(false)}>
+                İptal
               </Button>
+              <Button onClick={handleBulkUpload}>Yükle</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showPlanDialog} onOpenChange={setShowPlanDialog}>
+          <DialogTrigger asChild>
+            <Button variant="secondary">
+              <Calendar className="w-4 h-4 mr-2" />
+              Plan Oluştur
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Dağıtım Planı Oluştur</DialogTitle>
+              <DialogDescription>
+                Kullanılmamış kodlar için rastgele zaman dağıtımı oluşturun
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="planHours">Dağıtım Süresi (Saat)</Label>
+                <Input
+                  id="planHours"
+                  type="number"
+                  value={planHours}
+                  onChange={(e) => setPlanHours(e.target.value)}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="onePerUser">Kullanıcı Başına 1 Kod</Label>
+                <Switch
+                  id="onePerUser"
+                  checked={onePerUser}
+                  onCheckedChange={setOnePerUser}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="sendAnnouncement">Gruba Duyuru Gönder</Label>
+                <Switch
+                  id="sendAnnouncement"
+                  checked={sendAnnouncement}
+                  onCheckedChange={setSendAnnouncement}
+                />
+              </div>
+              {sendAnnouncement && (
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="pinMessage">Mesajı Sabitle</Label>
+                  <Switch
+                    id="pinMessage"
+                    checked={pinMessage}
+                    onCheckedChange={setPinMessage}
+                  />
+                </div>
+              )}
+              <div className="bg-zinc-100 dark:bg-zinc-800 p-3 rounded-lg text-sm">
+                <p className="font-medium mb-1">Özet:</p>
+                <p>• Kod Sayısı: {codes.filter(c => !c.used && !c.assigned).length}</p>
+                <p>• Süre: {planHours} saat</p>
+                <p>• Her kullanıcı: {onePerUser ? '1 kod' : 'Sınırsız'}</p>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowPlanDialog(false)}>
+                İptal
+              </Button>
+              <Button onClick={handleCreatePlan}>Oluştur</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showSettingsDialog} onOpenChange={setShowSettingsDialog}>
+          <DialogTrigger asChild>
+            <Button variant="outline">
+              <Settings className="w-4 h-4 mr-2" />
+              Ayarlar
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Promocod Ayarları</DialogTitle>
+              <DialogDescription>
+                Genel promocod ayarları
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="defaultLink">Varsayılan Link</Label>
+                <Input
+                  id="defaultLink"
+                  type="url"
+                  placeholder="https://example.com"
+                  value={defaultLink}
+                  onChange={(e) => setDefaultLink(e.target.value)}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="onePerUserSetting">Kullanıcı Başına 1 Kod</Label>
+                  <p className="text-sm text-zinc-500">Her kullanıcı sadece bir kez kod alabilir</p>
+                </div>
+                <Switch
+                  id="onePerUserSetting"
+                  checked={onePerUser}
+                  onCheckedChange={setOnePerUser}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowSettingsDialog(false)}>
+                İptal
+              </Button>
+              <Button onClick={handleSaveSettings}>Kaydet</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Button variant="destructive" onClick={handleReset}>
+          <Trash className="w-4 h-4 mr-2" />
+          Tümünü Sıfırla
+        </Button>
+      </div>
 
       {/* Codes List */}
       <Card className="border-0 shadow-lg">
@@ -217,11 +408,10 @@ export default function Promocodes() {
               <TableRow>
                 <TableHead>Kod</TableHead>
                 <TableHead>Durum</TableHead>
-                <TableHead>Min. Mesaj</TableHead>
                 <TableHead>Zamanlama</TableHead>
                 <TableHead>Atanan</TableHead>
+                <TableHead>Kullanılan</TableHead>
                 <TableHead>Oluşturulma</TableHead>
-                <TableHead>İşlem</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -232,13 +422,10 @@ export default function Promocodes() {
                     {code.used ? (
                       <Badge variant="destructive">Kullanıldı</Badge>
                     ) : code.assigned ? (
-                      <Badge variant="warning">Atandı</Badge>
+                      <Badge className="bg-yellow-500">Atandı</Badge>
                     ) : (
-                      <Badge variant="success">Aktif</Badge>
+                      <Badge className="bg-green-600">Aktif</Badge>
                     )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{code.min_messages}</Badge>
                   </TableCell>
                   <TableCell className="text-sm">
                     {code.sched_time ? (
@@ -259,16 +446,10 @@ export default function Promocodes() {
                     )}
                   </TableCell>
                   <TableCell className="text-sm text-zinc-500">
-                    {format(new Date(code.created_at), 'dd.MM.yyyy')}
+                    {code.used_at ? format(new Date(code.used_at), 'dd.MM.yyyy HH:mm') : '-'}
                   </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDeleteCode(code.code)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                  <TableCell className="text-sm text-zinc-500">
+                    {format(new Date(code.created_at), 'dd.MM.yyyy')}
                   </TableCell>
                 </TableRow>
               ))}
