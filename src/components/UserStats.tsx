@@ -3,10 +3,11 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { format } from 'date-fns';
+import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { formatTR } from '@/lib/date-utils';
 
 interface User {
   user_id: number;
@@ -27,16 +28,34 @@ export default function UserStats() {
   const [data, setData] = useState<UsersData | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setPage(1); // Reset to first page on new search
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   useEffect(() => {
     fetchUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+  }, [page, debouncedSearch]);
 
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/users?page=${page}&limit=50`);
+      const url = new URL('/api/users', window.location.origin);
+      url.searchParams.set('page', page.toString());
+      url.searchParams.set('limit', '50');
+      if (debouncedSearch) {
+        url.searchParams.set('search', debouncedSearch);
+      }
+
+      const response = await fetch(url.toString());
       const result = await response.json();
       if (result.success) {
         setData(result.data);
@@ -71,10 +90,25 @@ export default function UserStats() {
       {/* Users Table */}
       <Card className="border-0 shadow-lg">
         <CardHeader>
-          <CardTitle>Kullanıcı İstatistikleri</CardTitle>
-          <CardDescription>
-            Mesaj aktivitelerine göre sıralanmış kullanıcılar (Sayfa {data.page} / {data.totalPages})
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Kullanıcı İstatistikleri</CardTitle>
+              <CardDescription>
+                Mesaj aktivitelerine göre sıralanmış kullanıcılar (Sayfa {data.page} / {data.totalPages})
+              </CardDescription>
+            </div>
+            <div className="w-80">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                <Input
+                  placeholder="Kullanıcı ara (isim, username, ID)..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -120,13 +154,19 @@ export default function UserStats() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-sm text-zinc-500">
-                      {format(new Date(user.last_message_at), 'dd.MM.yyyy HH:mm')}
+                      {formatTR(user.last_message_at, 'dd.MM.yyyy HH:mm')}
                     </TableCell>
                   </TableRow>
                 );
               })}
             </TableBody>
           </Table>
+
+          {data.users.length === 0 && (
+            <div className="text-center py-12 text-zinc-500">
+              {searchQuery ? 'Arama sonucu bulunamadı' : 'Kullanıcı bulunamadı'}
+            </div>
+          )}
 
           {/* Pagination */}
           <div className="flex items-center justify-between mt-4">
