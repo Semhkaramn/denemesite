@@ -8,7 +8,15 @@ interface TargetUser {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { message, parseMode, sendToAll, userIds } = body;
+    const {
+      message,
+      parseMode,
+      sendToAll,
+      userIds,
+      disableWebPagePreview,
+      photoUrl,
+      inlineKeyboard
+    } = body;
 
     if (!message || !message.trim()) {
       return NextResponse.json({
@@ -55,20 +63,42 @@ export async function POST(request: Request) {
 
     // Create message log
     const logResult = await query(`
-      INSERT INTO message_logs (message_text, parse_mode, recipient_count, message_preview, sent_at)
-      VALUES ($1, $2, $3, $4, NOW())
+      INSERT INTO message_logs (
+        message_text, parse_mode, recipient_count, message_preview, sent_at,
+        disable_web_page_preview, photo_url, inline_keyboard
+      )
+      VALUES ($1, $2, $3, $4, NOW(), $5, $6, $7)
       RETURNING id
-    `, [message, parseMode || 'HTML', targetUsers.length, messagePreview]);
+    `, [
+      message,
+      parseMode || 'HTML',
+      targetUsers.length,
+      messagePreview,
+      disableWebPagePreview !== false,  // Default to true
+      photoUrl || null,
+      inlineKeyboard ? JSON.stringify(inlineKeyboard) : null
+    ]);
 
     const messageLogId = logResult.rows[0].id;
 
     // Store pending messages for each user
     for (const user of targetUsers) {
       await query(`
-        INSERT INTO pending_messages (user_id, message_text, parse_mode, message_log_id, status)
-        VALUES ($1, $2, $3, $4, 'pending')
+        INSERT INTO pending_messages (
+          user_id, message_text, parse_mode, message_log_id, status,
+          disable_web_page_preview, photo_url, inline_keyboard
+        )
+        VALUES ($1, $2, $3, $4, 'pending', $5, $6, $7)
         ON CONFLICT (user_id, message_log_id) DO NOTHING
-      `, [user.user_id, message, parseMode || 'HTML', messageLogId]);
+      `, [
+        user.user_id,
+        message,
+        parseMode || 'HTML',
+        messageLogId,
+        disableWebPagePreview !== false,  // Default to true
+        photoUrl || null,
+        inlineKeyboard ? JSON.stringify(inlineKeyboard) : null
+      ]);
     }
 
     return NextResponse.json({
