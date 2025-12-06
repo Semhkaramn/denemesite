@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
-import { Send, Users, Image, Link2, Square, Code, UserCheck, Search, X, Upload, Trash2, Video, FileImage, Plus, ArrowRight, ArrowDown } from 'lucide-react';
+import { Send, Users, Image, Link2, Square, Code, UserCheck, Search, X, Upload, Trash2, Video, FileImage, Plus, ArrowRight, ArrowDown, Edit2, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatTR } from '@/lib/date-utils';
 
@@ -56,6 +56,7 @@ export default function Messaging() {
 
   // Add button dialog states
   const [showAddButtonDialog, setShowAddButtonDialog] = useState(false);
+  const [editingButtonIndex, setEditingButtonIndex] = useState<number | null>(null);
   const [newButtonText, setNewButtonText] = useState('');
   const [newButtonUrl, setNewButtonUrl] = useState('');
   const [newButtonPosition, setNewButtonPosition] = useState<'inline' | 'below'>('inline');
@@ -148,6 +149,7 @@ export default function Messaging() {
         spoiler: { text: 'Spoiler', example: '<tg-spoiler>metin</tg-spoiler>' },
       };
     } else {
+      // Markdown - spoiler ve mention çalışmıyor, onları çıkarıyoruz
       return {
         bold: { text: 'Kalın', example: '**metin**' },
         italic: { text: 'İtalik', example: '_metin_' },
@@ -155,8 +157,24 @@ export default function Messaging() {
         strike: { text: 'Üstü Çizili', example: '~metin~' },
         code: { text: 'Kod', example: '`kod`' },
         link: { text: 'Link', example: '[metin](url)' },
-        spoiler: { text: 'Spoiler', example: '||metin||' },
       };
+    }
+  };
+
+  // Get user tags based on parse mode
+  const getUserTags = () => {
+    if (parseMode === 'HTML') {
+      return [
+        { key: 'username', label: '{username}' },
+        { key: 'first_name', label: '{first_name}' },
+        { key: 'mention', label: '{mention}' },
+      ];
+    } else {
+      // Markdown - mention çalışmıyor
+      return [
+        { key: 'username', label: '{username}' },
+        { key: 'first_name', label: '{first_name}' },
+      ];
     }
   };
 
@@ -246,10 +264,20 @@ export default function Messaging() {
     }
   };
 
-  const openAddButtonDialog = (position: 'inline' | 'below') => {
+  const openAddButtonDialog = (position: 'inline' | 'below', afterIndex?: number) => {
     setNewButtonPosition(position);
     setNewButtonText('');
     setNewButtonUrl('');
+    setEditingButtonIndex(afterIndex !== undefined ? afterIndex : null);
+    setShowAddButtonDialog(true);
+  };
+
+  const openEditButtonDialog = (index: number) => {
+    const button = buttons[index];
+    setNewButtonText(button.text);
+    setNewButtonUrl(button.url);
+    setNewButtonPosition(button.position);
+    setEditingButtonIndex(index);
     setShowAddButtonDialog(true);
   };
 
@@ -259,20 +287,45 @@ export default function Messaging() {
       return;
     }
 
-    setButtons([...buttons, {
-      text: newButtonText,
-      url: newButtonUrl,
-      position: newButtonPosition
-    }]);
+    if (editingButtonIndex !== null && editingButtonIndex >= 0 && editingButtonIndex < buttons.length) {
+      // Editing existing button
+      const newButtons = [...buttons];
+      newButtons[editingButtonIndex] = {
+        text: newButtonText,
+        url: newButtonUrl,
+        position: newButtonPosition
+      };
+      setButtons(newButtons);
+      toast.success('Buton güncellendi!');
+    } else {
+      // Adding new button after specific index
+      const newButton = {
+        text: newButtonText,
+        url: newButtonUrl,
+        position: newButtonPosition
+      };
+
+      if (editingButtonIndex !== null && editingButtonIndex >= 0) {
+        // Insert after specific button
+        const newButtons = [...buttons];
+        newButtons.splice(editingButtonIndex + 1, 0, newButton);
+        setButtons(newButtons);
+      } else {
+        // Add to end
+        setButtons([...buttons, newButton]);
+      }
+      toast.success('Buton eklendi!');
+    }
 
     setShowAddButtonDialog(false);
     setNewButtonText('');
     setNewButtonUrl('');
-    toast.success('Buton eklendi!');
+    setEditingButtonIndex(null);
   };
 
   const removeButton = (index: number) => {
     setButtons(buttons.filter((_, i) => i !== index));
+    toast.success('Buton silindi!');
   };
 
   const updateButton = (index: number, field: 'text' | 'url', value: string) => {
@@ -414,8 +467,8 @@ export default function Messaging() {
   }, []);
 
   const filteredUsers = getFilteredUsers();
-
   const formattedTags = getFormattedTags();
+  const userTags = getUserTags();
 
   return (
     <div className="space-y-6">
@@ -562,7 +615,58 @@ export default function Messaging() {
 
             <TabsContent value="simple" className="space-y-4">
               <div className="space-y-2">
-                <Label>Mesaj Metni</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Mesaj Metni</Label>
+                  <div className="flex items-center gap-2">
+                    {/* Format Selection - Minimal */}
+                    <div className="flex gap-1">
+                      <Button
+                        variant={parseMode === 'HTML' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => setParseMode('HTML')}
+                        className="h-7 text-xs px-2"
+                      >
+                        HTML
+                      </Button>
+                      <Button
+                        variant={parseMode === 'Markdown' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => setParseMode('Markdown')}
+                        className="h-7 text-xs px-2"
+                      >
+                        Markdown
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* User Tags - Minimal */}
+                <div className="flex flex-wrap gap-1 mb-1">
+                  {userTags.map((tag) => (
+                    <Button
+                      key={tag.key}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => insertTag(tag.label)}
+                      className="text-xs h-6 px-2"
+                    >
+                      {tag.label}
+                    </Button>
+                  ))}
+                  {Object.entries(formattedTags).map(([key, value]) => (
+                    <Button
+                      key={key}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => insertTag(value.example)}
+                      className="text-xs h-6 px-2"
+                      title={value.example}
+                    >
+                      {value.text}
+                    </Button>
+                  ))}
+                </div>
+
                 <Textarea
                   placeholder="Mesajınızı buraya yazın..."
                   value={messageText}
@@ -575,7 +679,58 @@ export default function Messaging() {
 
             <TabsContent value="html" className="space-y-4">
               <div className="space-y-2">
-                <Label>HTML Mesaj</Label>
+                <div className="flex items-center justify-between">
+                  <Label>HTML Mesaj</Label>
+                  <div className="flex items-center gap-2">
+                    {/* Format Selection - Minimal */}
+                    <div className="flex gap-1">
+                      <Button
+                        variant={parseMode === 'HTML' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => setParseMode('HTML')}
+                        className="h-7 text-xs px-2"
+                      >
+                        HTML
+                      </Button>
+                      <Button
+                        variant={parseMode === 'Markdown' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => setParseMode('Markdown')}
+                        className="h-7 text-xs px-2"
+                      >
+                        Markdown
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* User Tags - Minimal */}
+                <div className="flex flex-wrap gap-1 mb-1">
+                  {userTags.map((tag) => (
+                    <Button
+                      key={tag.key}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => insertTag(tag.label)}
+                      className="text-xs h-6 px-2"
+                    >
+                      {tag.label}
+                    </Button>
+                  ))}
+                  {Object.entries(formattedTags).map(([key, value]) => (
+                    <Button
+                      key={key}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => insertTag(value.example)}
+                      className="text-xs h-6 px-2"
+                      title={value.example}
+                    >
+                      {value.text}
+                    </Button>
+                  ))}
+                </div>
+
                 <Textarea
                   placeholder="<b>Kalın</b>, <i>İtalik</i>, <a href='url'>Link</a>"
                   value={messageHTML}
@@ -599,86 +754,7 @@ export default function Messaging() {
             </TabsContent>
           </Tabs>
 
-          {/* Tags and Format */}
-          <div className="space-y-4">
-            {/* Format Selection */}
-            <div className="space-y-2">
-              <Label className="text-sm">Mesaj Formatı</Label>
-              <div className="flex gap-2">
-                <Button
-                  variant={parseMode === 'HTML' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setParseMode('HTML')}
-                  className="flex-1 h-8"
-                >
-                  HTML
-                </Button>
-                <Button
-                  variant={parseMode === 'Markdown' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setParseMode('Markdown')}
-                  className="flex-1 h-8"
-                >
-                  Markdown
-                </Button>
-              </div>
-            </div>
-
-            {/* User Tags */}
-            <div className="space-y-2">
-              <Label className="text-sm">Kullanıcı Etiketleri</Label>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => insertTag('{username}')}
-                  className="text-xs h-7"
-                >
-                  {'{username}'}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => insertTag('{first_name}')}
-                  className="text-xs h-7"
-                >
-                  {'{first_name}'}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => insertTag('{mention}')}
-                  className="text-xs h-7"
-                >
-                  {'{mention}'}
-                </Button>
-              </div>
-            </div>
-
-            {/* Format Tags - Based on Parse Mode */}
-            <div className="space-y-2">
-              <Label className="text-sm">Format Etiketleri ({parseMode})</Label>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                {Object.entries(formattedTags).map(([key, value]) => (
-                  <Button
-                    key={key}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => insertTag(value.example)}
-                    className="text-xs h-7 justify-start"
-                    title={value.example}
-                  >
-                    {value.text}
-                  </Button>
-                ))}
-              </div>
-              <p className="text-xs text-zinc-500">
-                Format değiştirdiğinizde farklı etiketler görünür
-              </p>
-            </div>
-          </div>
-
-          {/* Buttons Section - Below Message */}
+          {/* Buttons Section - Redesigned */}
           <div className="space-y-3">
             <Label>Butonlar (Inline Keyboard)</Label>
 
@@ -695,47 +771,58 @@ export default function Messaging() {
                 </Button>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {buttons.map((btn, index) => (
                   <div key={index} className="space-y-2">
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="Buton Metni"
-                        value={btn.text}
-                        onChange={(e) => updateButton(index, 'text', e.target.value)}
-                        className="flex-1"
-                      />
-                      <Input
-                        placeholder="URL"
-                        value={btn.url}
-                        onChange={(e) => updateButton(index, 'url', e.target.value)}
-                        className="flex-1"
-                      />
+                    {/* Button Display and Yan Ekle */}
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="group relative flex-1 p-3 border rounded-lg hover:border-blue-400 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-all cursor-pointer"
+                        onClick={() => openEditButtonDialog(index)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-sm">{btn.text}</span>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">
+                              {btn.position === 'inline' ? 'Yanyana' : 'Altalta'}
+                            </Badge>
+                            <Pencil className="w-4 h-4 text-zinc-400 group-hover:text-blue-600 transition-colors" />
+                          </div>
+                        </div>
+                        <div className="text-xs text-zinc-500 mt-1 truncate">
+                          {btn.url}
+                        </div>
+                      </div>
+
+                      {/* Yan Ekle Button */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openAddButtonDialog('inline', index)}
+                        className="h-auto py-2 px-3"
+                      >
+                        <ArrowRight className="w-3 h-3 mr-1" />
+                        Yan Ekle
+                      </Button>
+
+                      {/* Delete Button */}
                       <Button
                         variant="destructive"
                         size="icon"
                         onClick={() => removeButton(index)}
+                        className="h-10 w-10"
                       >
                         <X className="w-4 h-4" />
                       </Button>
                     </div>
 
-                    {/* Add next button options */}
-                    <div className="flex gap-2 pl-4">
+                    {/* Alt Ekle Button */}
+                    <div className="flex justify-center">
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
-                        onClick={() => openAddButtonDialog('inline')}
-                        className="flex-1 h-8 text-xs"
-                      >
-                        <ArrowRight className="w-3 h-3 mr-1" />
-                        Yan Ekle
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openAddButtonDialog('below')}
-                        className="flex-1 h-8 text-xs"
+                        onClick={() => openAddButtonDialog('below', index)}
+                        className="w-32"
                       >
                         <ArrowDown className="w-3 h-3 mr-1" />
                         Alt Ekle
@@ -932,13 +1019,18 @@ export default function Messaging() {
         </DialogContent>
       </Dialog>
 
-      {/* Add Button Dialog */}
+      {/* Add/Edit Button Dialog */}
       <Dialog open={showAddButtonDialog} onOpenChange={setShowAddButtonDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Buton Ekle</DialogTitle>
+            <DialogTitle>
+              {editingButtonIndex !== null && editingButtonIndex >= 0 && editingButtonIndex < buttons.length ? 'Buton Düzenle' : 'Buton Ekle'}
+            </DialogTitle>
             <DialogDescription>
-              {newButtonPosition === 'inline' ? 'Yanyana' : 'Altalta'} buton ekleyin
+              {editingButtonIndex !== null && editingButtonIndex >= 0 && editingButtonIndex < buttons.length
+                ? 'Buton bilgilerini güncelleyin'
+                : `${newButtonPosition === 'inline' ? 'Yanyana' : 'Altalta'} buton ekleyin`
+              }
             </DialogDescription>
           </DialogHeader>
 
@@ -955,6 +1047,7 @@ export default function Messaging() {
                     confirmAddButton();
                   }
                 }}
+                autoFocus
               />
             </div>
             <div className="space-y-2">
@@ -971,24 +1064,26 @@ export default function Messaging() {
                 }}
               />
             </div>
-            <div className="flex items-center gap-2 p-3 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
-              <Badge variant={newButtonPosition === 'inline' ? 'default' : 'secondary'}>
-                {newButtonPosition === 'inline' ? (
-                  <>
-                    <ArrowRight className="w-3 h-3 mr-1" />
-                    Yanyana
-                  </>
-                ) : (
-                  <>
-                    <ArrowDown className="w-3 h-3 mr-1" />
-                    Altalta
-                  </>
-                )}
-              </Badge>
-              <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                Buton {newButtonPosition === 'inline' ? 'yan yana' : 'alt alta'} eklenecek
-              </span>
-            </div>
+            {!(editingButtonIndex !== null && editingButtonIndex >= 0 && editingButtonIndex < buttons.length) && (
+              <div className="flex items-center gap-2 p-3 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
+                <Badge variant={newButtonPosition === 'inline' ? 'default' : 'secondary'}>
+                  {newButtonPosition === 'inline' ? (
+                    <>
+                      <ArrowRight className="w-3 h-3 mr-1" />
+                      Yanyana
+                    </>
+                  ) : (
+                    <>
+                      <ArrowDown className="w-3 h-3 mr-1" />
+                      Altalta
+                    </>
+                  )}
+                </Badge>
+                <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                  Buton {newButtonPosition === 'inline' ? 'yan yana' : 'alt alta'} eklenecek
+                </span>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
@@ -996,7 +1091,7 @@ export default function Messaging() {
               İptal
             </Button>
             <Button onClick={confirmAddButton}>
-              Tamam
+              {editingButtonIndex !== null && editingButtonIndex >= 0 && editingButtonIndex < buttons.length ? 'Güncelle' : 'Tamam'}
             </Button>
           </DialogFooter>
         </DialogContent>
