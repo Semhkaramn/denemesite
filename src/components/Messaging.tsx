@@ -286,8 +286,8 @@ export default function Messaging() {
           });
 
           // Group buttons by rows based on position
-          const rows: any[][] = [];
-          let currentRow: any[] = [];
+          const rows: Array<Array<{text: string; url: string}>> = [];
+          let currentRow: Array<{text: string; url: string}> = [];
 
           for (const btn of processedButtons) {
             if (btn.position === 'below' && currentRow.length > 0) {
