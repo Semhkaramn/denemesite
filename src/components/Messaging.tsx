@@ -307,7 +307,8 @@ export default function Messaging() {
           disableWebPagePreview,
           photoUrl: finalPhotoUrl || undefined,
           inlineKeyboard,
-          mediaType: finalPhotoUrl ? mediaType : undefined
+          mediaType: finalPhotoUrl ? mediaType : undefined,
+          buttonLayout
         })
       });
 
