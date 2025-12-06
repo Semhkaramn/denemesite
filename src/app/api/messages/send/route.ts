@@ -18,10 +18,11 @@ export async function POST(request: Request) {
       inlineKeyboard
     } = body;
 
-    if (!message || !message.trim()) {
+    // Allow empty message if there's a photo
+    if (!message?.trim() && !photoUrl) {
       return NextResponse.json({
         success: false,
-        error: 'Message is required'
+        error: 'Message or photo is required'
       }, { status: 400 });
     }
 
