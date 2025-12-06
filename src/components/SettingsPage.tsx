@@ -105,71 +105,7 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <Card className="border-0 shadow-lg">
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-zinc-800 to-zinc-600 flex items-center justify-center">
-              <Settings className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold">Bot Ayarları</h2>
-              <p className="text-sm text-zinc-500">Genel konfigürasyon ve ayarlar</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* Default Link Setting */}
-      <Card className="border-0 shadow-lg">
-        <CardHeader>
-          <CardTitle>Varsayılan Link</CardTitle>
-          <CardDescription>Promocod mesajlarında kullanılacak varsayılan link</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="defaultLink">Link URL</Label>
-            <Input
-              id="defaultLink"
-              type="url"
-              value={defaultLink}
-              onChange={(e) => setDefaultLink(e.target.value)}
-              placeholder="https://example.com"
-            />
-          </div>
-          <Button onClick={() => handleSaveSetting('default_link', defaultLink)}>
-            <Save className="w-4 h-4 mr-2" />
-            Kaydet
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Promocod Settings */}
-      <Card className="border-0 shadow-lg">
-        <CardHeader>
-          <CardTitle>Promocod Ayarları</CardTitle>
-          <CardDescription>Promocod sisteminin çalışma şekli</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between p-4 border rounded-lg">
-            <div>
-              <p className="font-medium">Kişi Başı Bir Kod</p>
-              <p className="text-sm text-zinc-500">
-                Her kullanıcı sadece bir kez kod alabilir
-              </p>
-            </div>
-            <Button
-              variant={onePerUser ? 'default' : 'outline'}
-              onClick={() => {
-                const newValue = !onePerUser;
-                setOnePerUser(newValue);
-                handleSaveSetting('promocod_one_per_user', String(newValue));
-              }}
-            >
-              {onePerUser ? 'Aktif' : 'Pasif'}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Message Templates - Promocode */}
       <Card className="border-0 shadow-lg">
@@ -344,3 +280,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+
