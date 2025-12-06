@@ -780,74 +780,55 @@ export default function Messaging() {
               </div>
             ) : (
               <div className="space-y-2">
-                {(() => {
-                  const rows: number[][] = [];
-                  let currentRow: number[] = [];
+                {buttons.map((btn, btnIndex) => (
+                  <div key={btnIndex} className="space-y-2">
+                    {/* Button Row */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {/* The Button */}
+                      <div
+                        className="group relative px-3 py-2 border rounded-lg hover:border-blue-400 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-all cursor-pointer flex items-center gap-2 flex-shrink min-w-0"
+                        onClick={() => openEditButtonDialog(btnIndex)}
+                      >
+                        <span className="font-medium text-sm truncate">{btn.text}</span>
+                        <Pencil className="w-3 h-3 text-zinc-400 group-hover:text-blue-600 transition-colors flex-shrink-0" />
+                      </div>
 
-                  buttons.forEach((btn, index) => {
-                    if (btn.position === 'below' && currentRow.length > 0) {
-                      rows.push(currentRow);
-                      currentRow = [];
-                    }
-                    currentRow.push(index);
-                    if (btn.position === 'below') {
-                      rows.push(currentRow);
-                      currentRow = [];
-                    }
-                  });
-                  if (currentRow.length > 0) {
-                    rows.push(currentRow);
-                  }
+                      {/* Delete Button */}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeButton(btnIndex)}
+                        className="h-8 w-8 hover:bg-red-100 hover:text-red-600 flex-shrink-0"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
 
-                  return rows.map((row, rowIndex) => (
-                    <div key={rowIndex} className="flex flex-wrap items-center gap-2">
-                      {row.map((btnIndex) => {
-                        const btn = buttons[btnIndex];
-                        return (
-                          <div key={btnIndex} className="flex items-center gap-1">
-                            <div
-                              className="group relative px-4 py-2 border rounded-lg hover:border-blue-400 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-all cursor-pointer flex items-center gap-2"
-                              onClick={() => openEditButtonDialog(btnIndex)}
-                            >
-                              <span className="font-medium text-sm">{btn.text}</span>
-                              <Pencil className="w-3 h-3 text-zinc-400 group-hover:text-blue-600 transition-colors" />
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeButton(btnIndex)}
-                              className="h-6 w-6 hover:bg-red-100 hover:text-red-600"
-                            >
-                              <X className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        );
-                      })}
+                      {/* Add Next to This Button */}
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => openAddButtonDialog('inline', row[row.length - 1])}
-                        className="h-8 px-3"
+                        onClick={() => openAddButtonDialog('inline', btnIndex)}
+                        className="h-8 px-3 flex-shrink-0"
                       >
                         <Plus className="w-3 h-3 mr-1" />
                         Yan Ekle
                       </Button>
                     </div>
-                  ));
-                })()}
 
-                {/* Alt Ekle at the bottom */}
-                <div className="flex justify-center pt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openAddButtonDialog('below', buttons.length - 1)}
-                    className="px-4"
-                  >
-                    <Plus className="w-3 h-3 mr-1" />
-                    Alt Ekle
-                  </Button>
-                </div>
+                    {/* Add Below This Button */}
+                    <div className="flex justify-center">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openAddButtonDialog('below', btnIndex)}
+                        className="h-7 px-3 text-xs"
+                      >
+                        <Plus className="w-3 h-3 mr-1" />
+                        Alt Ekle
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -1082,26 +1063,7 @@ export default function Messaging() {
                 }}
               />
             </div>
-            {!isEditMode && (
-              <div className="flex items-center gap-2 p-3 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
-                <Badge variant={newButtonPosition === 'inline' ? 'default' : 'secondary'}>
-                  {newButtonPosition === 'inline' ? (
-                    <>
-                      <ArrowRight className="w-3 h-3 mr-1" />
-                      Yanyana
-                    </>
-                  ) : (
-                    <>
-                      <ArrowDown className="w-3 h-3 mr-1" />
-                      Altalta
-                    </>
-                  )}
-                </Badge>
-                <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                  Buton {newButtonPosition === 'inline' ? 'yan yana' : 'alt alta'} eklenecek
-                </span>
-              </div>
-            )}
+
           </div>
 
           <DialogFooter>
