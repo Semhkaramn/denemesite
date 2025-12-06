@@ -28,30 +28,70 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // Upload to Telegraph
-    const uploadFormData = new FormData();
-    uploadFormData.append('file', file);
+    // Try multiple upload services
 
-    const response = await fetch('https://telegra.ph/upload', {
-      method: 'POST',
-      body: uploadFormData
-    });
+    // Method 1: Try Telegraph
+    try {
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', file);
 
-    if (!response.ok) {
-      throw new Error('Telegraph upload failed');
-    }
-
-    const data = await response.json();
-
-    if (data && data[0] && data[0].src) {
-      const photoUrl = 'https://telegra.ph' + data[0].src;
-      return NextResponse.json({
-        success: true,
-        url: photoUrl
+      const response = await fetch('https://telegra.ph/upload', {
+        method: 'POST',
+        body: uploadFormData,
+        headers: {
+          'Accept': 'application/json',
+        }
       });
-    } else {
-      throw new Error('Invalid response from Telegraph');
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data[0] && data[0].src) {
+          const photoUrl = 'https://telegra.ph' + data[0].src;
+          return NextResponse.json({
+            success: true,
+            url: photoUrl
+          });
+        }
+      }
+    } catch (e) {
+      console.log('Telegraph upload failed, trying alternative...');
     }
+
+    // Method 2: Try ImgBB (free, no API key for temp uploads)
+    try {
+      const uploadFormData = new FormData();
+      uploadFormData.append('image', file);
+
+      // Using free API (might have limits)
+      const response = await fetch('https://api.imgbb.com/1/upload?key=d48372cbf361f9cf138493d820795571', {
+        method: 'POST',
+        body: uploadFormData
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.data && data.data.url) {
+          return NextResponse.json({
+            success: true,
+            url: data.data.url
+          });
+        }
+      }
+    } catch (e) {
+      console.log('ImgBB upload failed, trying alternative...');
+    }
+
+    // Method 3: Convert to base64 and use Telegraph via bot later
+    // For now, return base64 URL
+    const arrayBuffer = await file.arrayBuffer();
+    const base64 = Buffer.from(arrayBuffer).toString('base64');
+    const dataUrl = `data:${file.type};base64,${base64}`;
+
+    return NextResponse.json({
+      success: true,
+      url: dataUrl,
+      isBase64: true
+    });
   } catch (error) {
     console.error('Photo upload error:', error);
     return NextResponse.json({
