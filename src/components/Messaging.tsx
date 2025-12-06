@@ -157,15 +157,32 @@ export default function Messaging() {
   };
 
   const uploadPhoto = async (file: File): Promise<string> => {
-    // Convert to base64 or upload to a service
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        resolve(reader.result as string);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
+    // Upload to Telegraph (Telegram's free image hosting)
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch('https://telegra.ph/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+
+      const data = await response.json();
+
+      if (data && data[0] && data[0].src) {
+        // Telegraph returns relative URL, make it absolute
+        return 'https://telegra.ph' + data[0].src;
+      } else {
+        throw new Error('Invalid response from upload service');
+      }
+    } catch (error) {
+      console.error('Photo upload error:', error);
+      throw new Error('Fotoğraf yüklenemedi');
+    }
   };
 
   const handleSendMessage = async () => {
@@ -184,18 +201,26 @@ export default function Messaging() {
     setLoading(true);
 
     try {
-      // For photo file, we need URL not base64 - warn user
+      // Upload photo file if exists
+      let finalPhotoUrl = photoUrl;
       if (photoFile) {
-        toast.error('Fotoğraf dosyası yükleme henüz desteklenmiyor. Lütfen fotoğraf URL\'si kullanın.');
-        setLoading(false);
-        return;
+        toast.info('Fotoğraf yükleniyor...');
+        try {
+          finalPhotoUrl = await uploadPhoto(photoFile);
+          toast.success('Fotoğraf başarıyla yüklendi!');
+        } catch (error) {
+          toast.error('Fotoğraf yüklenemedi. Lütfen tekrar deneyin.');
+          setLoading(false);
+          return;
+        }
       }
 
-      // Validate photo URL if provided
-      if (photoUrl && !photoUrl.startsWith('http')) {
-        toast.error('Geçerli bir URL giriniz (http:// veya https:// ile başlamalı)');
-        setLoading(false);
-        return;
+      // Validate and fix photo URL if provided
+      if (finalPhotoUrl) {
+        const trimmedUrl = finalPhotoUrl.trim();
+        if (!trimmedUrl.startsWith('http://') && !trimmedUrl.startsWith('https://')) {
+          finalPhotoUrl = 'https://' + trimmedUrl;
+        }
       }
 
       // Prepare inline keyboard if buttons exist
@@ -204,18 +229,18 @@ export default function Messaging() {
         // Filter out empty buttons
         const validButtons = buttons.filter(btn => btn.text.trim() && btn.url.trim());
         if (validButtons.length > 0) {
-          // Validate button URLs
-          for (const btn of validButtons) {
-            if (!btn.url.startsWith('http')) {
-              toast.error(`Buton URL'si geçersiz: ${btn.text}`);
-              setLoading(false);
-              return;
+          // Auto-add https:// to URLs if needed
+          const processedButtons = validButtons.map(btn => {
+            let url = btn.url.trim();
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+              url = 'https://' + url;
             }
-          }
-          inlineKeyboard = [validButtons.map(btn => ({
-            text: btn.text,
-            url: btn.url
-          }))];
+            return {
+              text: btn.text,
+              url: url
+            };
+          });
+          inlineKeyboard = [processedButtons];
         }
       }
 
@@ -228,7 +253,7 @@ export default function Messaging() {
           sendToAll: messageType === 'all',
           userIds: messageType === 'selected' ? Array.from(selectedUsers) : undefined,
           disableWebPagePreview,
-          photoUrl: photoUrl || undefined,
+          photoUrl: finalPhotoUrl || undefined,
           inlineKeyboard
         })
       });
