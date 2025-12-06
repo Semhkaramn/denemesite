@@ -56,7 +56,9 @@ export default function Messaging() {
 
   // Add button dialog states
   const [showAddButtonDialog, setShowAddButtonDialog] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [editingButtonIndex, setEditingButtonIndex] = useState<number | null>(null);
+  const [addAfterIndex, setAddAfterIndex] = useState<number | null>(null);
   const [newButtonText, setNewButtonText] = useState('');
   const [newButtonUrl, setNewButtonUrl] = useState('');
   const [newButtonPosition, setNewButtonPosition] = useState<'inline' | 'below'>('inline');
@@ -265,19 +267,23 @@ export default function Messaging() {
   };
 
   const openAddButtonDialog = (position: 'inline' | 'below', afterIndex?: number) => {
+    setIsEditMode(false);
     setNewButtonPosition(position);
     setNewButtonText('');
     setNewButtonUrl('');
-    setEditingButtonIndex(afterIndex !== undefined ? afterIndex : null);
+    setAddAfterIndex(afterIndex !== undefined && afterIndex >= 0 ? afterIndex : null);
+    setEditingButtonIndex(null);
     setShowAddButtonDialog(true);
   };
 
   const openEditButtonDialog = (index: number) => {
+    setIsEditMode(true);
     const button = buttons[index];
     setNewButtonText(button.text);
     setNewButtonUrl(button.url);
     setNewButtonPosition(button.position);
     setEditingButtonIndex(index);
+    setAddAfterIndex(null);
     setShowAddButtonDialog(true);
   };
 
@@ -287,7 +293,7 @@ export default function Messaging() {
       return;
     }
 
-    if (editingButtonIndex !== null && editingButtonIndex >= 0 && editingButtonIndex < buttons.length) {
+    if (isEditMode && editingButtonIndex !== null) {
       // Editing existing button
       const newButtons = [...buttons];
       newButtons[editingButtonIndex] = {
@@ -298,17 +304,17 @@ export default function Messaging() {
       setButtons(newButtons);
       toast.success('Buton güncellendi!');
     } else {
-      // Adding new button after specific index
+      // Adding new button
       const newButton = {
         text: newButtonText,
         url: newButtonUrl,
         position: newButtonPosition
       };
 
-      if (editingButtonIndex !== null && editingButtonIndex >= 0) {
+      if (addAfterIndex !== null && addAfterIndex >= 0) {
         // Insert after specific button
         const newButtons = [...buttons];
-        newButtons.splice(editingButtonIndex + 1, 0, newButton);
+        newButtons.splice(addAfterIndex + 1, 0, newButton);
         setButtons(newButtons);
       } else {
         // Add to end
@@ -320,7 +326,9 @@ export default function Messaging() {
     setShowAddButtonDialog(false);
     setNewButtonText('');
     setNewButtonUrl('');
+    setIsEditMode(false);
     setEditingButtonIndex(null);
+    setAddAfterIndex(null);
   };
 
   const removeButton = (index: number) => {
@@ -1034,10 +1042,10 @@ export default function Messaging() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {editingButtonIndex !== null && editingButtonIndex >= 0 && editingButtonIndex < buttons.length ? 'Buton Düzenle' : 'Buton Ekle'}
+              {isEditMode ? 'Buton Düzenle' : 'Buton Ekle'}
             </DialogTitle>
             <DialogDescription>
-              {editingButtonIndex !== null && editingButtonIndex >= 0 && editingButtonIndex < buttons.length
+              {isEditMode
                 ? 'Buton bilgilerini güncelleyin'
                 : `${newButtonPosition === 'inline' ? 'Yanyana' : 'Altalta'} buton ekleyin`
               }
@@ -1074,7 +1082,7 @@ export default function Messaging() {
                 }}
               />
             </div>
-            {!(editingButtonIndex !== null && editingButtonIndex >= 0 && editingButtonIndex < buttons.length) && (
+            {!isEditMode && (
               <div className="flex items-center gap-2 p-3 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
                 <Badge variant={newButtonPosition === 'inline' ? 'default' : 'secondary'}>
                   {newButtonPosition === 'inline' ? (
@@ -1101,7 +1109,7 @@ export default function Messaging() {
               İptal
             </Button>
             <Button onClick={confirmAddButton}>
-              {editingButtonIndex !== null && editingButtonIndex >= 0 && editingButtonIndex < buttons.length ? 'Güncelle' : 'Tamam'}
+              {isEditMode ? 'Güncelle' : 'Tamam'}
             </Button>
           </DialogFooter>
         </DialogContent>
