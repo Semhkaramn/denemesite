@@ -3,21 +3,32 @@ import { query } from '@/lib/db';
 
 export async function GET() {
   try {
-    // Get default_link
-    const linkResult = await query(`
-      SELECT value FROM bot_settings WHERE key = 'default_link'
+    // Get all settings from bot_settings
+    const settingsResult = await query(`
+      SELECT key, value FROM bot_settings
     `);
 
     // Get one_per_user setting
-    const settingsResult = await query(`
+    const promocodSettingsResult = await query(`
       SELECT one_per_user FROM promocod_settings ORDER BY id DESC LIMIT 1
     `);
+
+    // Convert settings to object
+    const settings: Record<string, string> = {};
+    for (const row of settingsResult.rows) {
+      settings[row.key] = row.value;
+    }
 
     return NextResponse.json({
       success: true,
       data: {
-        default_link: linkResult.rows[0]?.value || '',
-        one_per_user: settingsResult.rows[0]?.one_per_user !== false
+        default_link: settings.default_link || '',
+        one_per_user: promocodSettingsResult.rows[0]?.one_per_user !== false,
+        promocod_one_per_user: promocodSettingsResult.rows[0]?.one_per_user !== false,
+        promocod_dm_template: settings.promocod_dm_template || '',
+        promocod_group_template: settings.promocod_group_template || '',
+        randy_dm_template: settings.randy_dm_template || '',
+        randy_group_template: settings.randy_group_template || ''
       }
     });
   } catch (error) {
@@ -29,9 +40,18 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { default_link, one_per_user } = body;
+    const { key, value, default_link, one_per_user } = body;
 
-    // Update default_link
+    // If using key/value format (for templates and other settings)
+    if (key && value !== undefined) {
+      await query(`
+        INSERT INTO bot_settings (key, value)
+        VALUES ($1, $2)
+        ON CONFLICT (key) DO UPDATE SET value = $2
+      `, [key, value]);
+    }
+
+    // Update default_link (backward compatibility)
     if (default_link !== undefined) {
       await query(`
         INSERT INTO bot_settings (key, value)
