@@ -34,11 +34,11 @@ export function toTR(date: Date | string): Date {
  */
 export function localInputToISO(localDateTimeString: string): string {
   // datetime-local input gives us a string like "2024-12-05T20:00"
-  // We need to treat this as Istanbul time and convert to UTC
-  const date = new Date(localDateTimeString);
-  // Manually adjust for Turkey timezone (UTC+3)
-  const utcDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
-  return utcDate.toISOString();
+  // We need to treat this as Istanbul time (UTC+3) and convert to UTC
+  // Add timezone offset to make it a proper ISO string
+  const istanbulDateString = localDateTimeString + ':00+03:00';
+  const date = new Date(istanbulDateString);
+  return date.toISOString();
 }
 
 /**
@@ -48,10 +48,8 @@ export function localInputToISO(localDateTimeString: string): string {
  */
 export function isoToLocalInput(isoString: string): string {
   const date = new Date(isoString);
-  // Add Turkey timezone offset (UTC+3)
-  const localDate = new Date(date.getTime() + (3 * 60 * 60 * 1000));
-  // Format for datetime-local input: "YYYY-MM-DDTHH:mm"
-  return localDate.toISOString().slice(0, 16);
+  // Format in Istanbul timezone
+  return formatInTimeZone(date, ISTANBUL_TZ, "yyyy-MM-dd'T'HH:mm");
 }
 
 /**
@@ -59,7 +57,6 @@ export function isoToLocalInput(isoString: string): string {
  */
 export function nowTRForInput(): string {
   const now = new Date();
-  // Add Turkey timezone offset (UTC+3)
-  const localDate = new Date(now.getTime() + (3 * 60 * 60 * 1000));
-  return localDate.toISOString().slice(0, 16);
+  // Format current time in Istanbul timezone for datetime-local input
+  return formatInTimeZone(now, ISTANBUL_TZ, "yyyy-MM-dd'T'HH:mm");
 }
