@@ -54,6 +54,12 @@ export default function Messaging() {
   // Button states with positioning
   const [buttons, setButtons] = useState<ButtonItem[]>([]);
 
+  // Add button dialog states
+  const [showAddButtonDialog, setShowAddButtonDialog] = useState(false);
+  const [newButtonText, setNewButtonText] = useState('');
+  const [newButtonUrl, setNewButtonUrl] = useState('');
+  const [newButtonPosition, setNewButtonPosition] = useState<'inline' | 'below'>('inline');
+
   // Selected users
   const [selectedUsers, setSelectedUsers] = useState<Set<number>>(new Set());
   const [users, setUsers] = useState<User[]>([]);
@@ -126,6 +132,31 @@ export default function Messaging() {
       setMessageHTML(newMessage);
     } else {
       setMessageText(newMessage);
+    }
+  };
+
+  // Get tags based on parse mode
+  const getFormattedTags = () => {
+    if (parseMode === 'HTML') {
+      return {
+        bold: { text: 'Kalın', example: '<b>metin</b>' },
+        italic: { text: 'İtalik', example: '<i>metin</i>' },
+        underline: { text: 'Altı Çizili', example: '<u>metin</u>' },
+        strike: { text: 'Üstü Çizili', example: '<s>metin</s>' },
+        code: { text: 'Kod', example: '<code>kod</code>' },
+        link: { text: 'Link', example: '<a href="url">metin</a>' },
+        spoiler: { text: 'Spoiler', example: '<tg-spoiler>metin</tg-spoiler>' },
+      };
+    } else {
+      return {
+        bold: { text: 'Kalın', example: '**metin**' },
+        italic: { text: 'İtalik', example: '_metin_' },
+        underline: { text: 'Altı Çizili', example: '__metin__' },
+        strike: { text: 'Üstü Çizili', example: '~metin~' },
+        code: { text: 'Kod', example: '`kod`' },
+        link: { text: 'Link', example: '[metin](url)' },
+        spoiler: { text: 'Spoiler', example: '||metin||' },
+      };
     }
   };
 
@@ -215,8 +246,29 @@ export default function Messaging() {
     }
   };
 
-  const addButton = (position: 'inline' | 'below') => {
-    setButtons([...buttons, { text: '', url: '', position }]);
+  const openAddButtonDialog = (position: 'inline' | 'below') => {
+    setNewButtonPosition(position);
+    setNewButtonText('');
+    setNewButtonUrl('');
+    setShowAddButtonDialog(true);
+  };
+
+  const confirmAddButton = () => {
+    if (!newButtonText.trim() || !newButtonUrl.trim()) {
+      toast.error('Lütfen buton metni ve URL girin!');
+      return;
+    }
+
+    setButtons([...buttons, {
+      text: newButtonText,
+      url: newButtonUrl,
+      position: newButtonPosition
+    }]);
+
+    setShowAddButtonDialog(false);
+    setNewButtonText('');
+    setNewButtonUrl('');
+    toast.success('Buton eklendi!');
   };
 
   const removeButton = (index: number) => {
@@ -362,6 +414,8 @@ export default function Messaging() {
   }, []);
 
   const filteredUsers = getFilteredUsers();
+
+  const formattedTags = getFormattedTags();
 
   return (
     <div className="space-y-6">
@@ -545,11 +599,34 @@ export default function Messaging() {
             </TabsContent>
           </Tabs>
 
-          {/* Tags and Format - Side by Side Minimal */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Tags */}
+          {/* Tags and Format */}
+          <div className="space-y-4">
+            {/* Format Selection */}
             <div className="space-y-2">
-              <Label className="text-sm">Etiketler</Label>
+              <Label className="text-sm">Mesaj Formatı</Label>
+              <div className="flex gap-2">
+                <Button
+                  variant={parseMode === 'HTML' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setParseMode('HTML')}
+                  className="flex-1 h-8"
+                >
+                  HTML
+                </Button>
+                <Button
+                  variant={parseMode === 'Markdown' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setParseMode('Markdown')}
+                  className="flex-1 h-8"
+                >
+                  Markdown
+                </Button>
+              </div>
+            </div>
+
+            {/* User Tags */}
+            <div className="space-y-2">
+              <Label className="text-sm">Kullanıcı Etiketleri</Label>
               <div className="flex flex-wrap gap-2">
                 <Button
                   variant="outline"
@@ -578,27 +655,26 @@ export default function Messaging() {
               </div>
             </div>
 
-            {/* Format */}
+            {/* Format Tags - Based on Parse Mode */}
             <div className="space-y-2">
-              <Label className="text-sm">Mesaj Formatı</Label>
-              <div className="flex gap-2">
-                <Button
-                  variant={parseMode === 'HTML' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setParseMode('HTML')}
-                  className="flex-1 h-7"
-                >
-                  HTML
-                </Button>
-                <Button
-                  variant={parseMode === 'Markdown' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setParseMode('Markdown')}
-                  className="flex-1 h-7"
-                >
-                  Markdown
-                </Button>
+              <Label className="text-sm">Format Etiketleri ({parseMode})</Label>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {Object.entries(formattedTags).map(([key, value]) => (
+                  <Button
+                    key={key}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => insertTag(value.example)}
+                    className="text-xs h-7 justify-start"
+                    title={value.example}
+                  >
+                    {value.text}
+                  </Button>
+                ))}
               </div>
+              <p className="text-xs text-zinc-500">
+                Format değiştirdiğinizde farklı etiketler görünür
+              </p>
             </div>
           </div>
 
@@ -610,7 +686,7 @@ export default function Messaging() {
               <div className="flex gap-2">
                 <Button
                   variant="outline"
-                  onClick={() => addButton('inline')}
+                  onClick={() => openAddButtonDialog('inline')}
                   className="flex-1"
                   size="sm"
                 >
@@ -649,7 +725,7 @@ export default function Messaging() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => addButton('inline')}
+                        onClick={() => openAddButtonDialog('inline')}
                         className="flex-1 h-8 text-xs"
                       >
                         <ArrowRight className="w-3 h-3 mr-1" />
@@ -658,7 +734,7 @@ export default function Messaging() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => addButton('below')}
+                        onClick={() => openAddButtonDialog('below')}
                         className="flex-1 h-8 text-xs"
                       >
                         <ArrowDown className="w-3 h-3 mr-1" />
@@ -851,6 +927,76 @@ export default function Messaging() {
             </Button>
             <Button onClick={() => setShowUserSelector(false)}>
               Seçimi Onayla ({selectedUsers.size})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Button Dialog */}
+      <Dialog open={showAddButtonDialog} onOpenChange={setShowAddButtonDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Buton Ekle</DialogTitle>
+            <DialogDescription>
+              {newButtonPosition === 'inline' ? 'Yanyana' : 'Altalta'} buton ekleyin
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="buttonText">Buton Metni</Label>
+              <Input
+                id="buttonText"
+                placeholder="Örn: Web Sitesi"
+                value={newButtonText}
+                onChange={(e) => setNewButtonText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    confirmAddButton();
+                  }
+                }}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="buttonUrl">URL</Label>
+              <Input
+                id="buttonUrl"
+                placeholder="Örn: https://example.com"
+                value={newButtonUrl}
+                onChange={(e) => setNewButtonUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    confirmAddButton();
+                  }
+                }}
+              />
+            </div>
+            <div className="flex items-center gap-2 p-3 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
+              <Badge variant={newButtonPosition === 'inline' ? 'default' : 'secondary'}>
+                {newButtonPosition === 'inline' ? (
+                  <>
+                    <ArrowRight className="w-3 h-3 mr-1" />
+                    Yanyana
+                  </>
+                ) : (
+                  <>
+                    <ArrowDown className="w-3 h-3 mr-1" />
+                    Altalta
+                  </>
+                )}
+              </Badge>
+              <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                Buton {newButtonPosition === 'inline' ? 'yan yana' : 'alt alta'} eklenecek
+              </span>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddButtonDialog(false)}>
+              İptal
+            </Button>
+            <Button onClick={confirmAddButton}>
+              Tamam
             </Button>
           </DialogFooter>
         </DialogContent>
