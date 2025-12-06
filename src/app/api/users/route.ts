@@ -99,8 +99,9 @@ export async function GET(request: Request) {
       params.push(`%${search}%`);
     }
 
-    // Combine filters
-    const conditions = [whereClause, periodClause].filter(c => c);
+    // Combine filters + Only show users who started the bot
+    const botStartedCondition = 'started_bot = TRUE';
+    const conditions = [whereClause, periodClause, botStartedCondition].filter(c => c);
     const finalWhereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
     const result = await query(`
