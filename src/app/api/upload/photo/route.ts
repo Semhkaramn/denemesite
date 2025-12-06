@@ -28,61 +28,10 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // Try multiple upload services
+    // Bot will handle base64 images directly, so we'll just convert to base64
+    // This is more reliable than trying external upload services
+    console.log('Converting image to base64 for direct bot transmission...');
 
-    // Method 1: Try Telegraph
-    try {
-      const uploadFormData = new FormData();
-      uploadFormData.append('file', file);
-
-      const response = await fetch('https://telegra.ph/upload', {
-        method: 'POST',
-        body: uploadFormData,
-        headers: {
-          'Accept': 'application/json',
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data && data[0] && data[0].src) {
-          const photoUrl = 'https://telegra.ph' + data[0].src;
-          return NextResponse.json({
-            success: true,
-            url: photoUrl
-          });
-        }
-      }
-    } catch (e) {
-      console.log('Telegraph upload failed, trying alternative...');
-    }
-
-    // Method 2: Try ImgBB (free, no API key for temp uploads)
-    try {
-      const uploadFormData = new FormData();
-      uploadFormData.append('image', file);
-
-      // Using free API (might have limits)
-      const response = await fetch('https://api.imgbb.com/1/upload?key=d48372cbf361f9cf138493d820795571', {
-        method: 'POST',
-        body: uploadFormData
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data && data.data && data.data.url) {
-          return NextResponse.json({
-            success: true,
-            url: data.data.url
-          });
-        }
-      }
-    } catch (e) {
-      console.log('ImgBB upload failed, trying alternative...');
-    }
-
-    // Method 3: Convert to base64 and use Telegraph via bot later
-    // For now, return base64 URL
     const arrayBuffer = await file.arrayBuffer();
     const base64 = Buffer.from(arrayBuffer).toString('base64');
     const dataUrl = `data:${file.type};base64,${base64}`;
@@ -90,7 +39,8 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       url: dataUrl,
-      isBase64: true
+      isBase64: true,
+      message: 'Image will be sent directly by bot'
     });
   } catch (error) {
     console.error('Photo upload error:', error);
