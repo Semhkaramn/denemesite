@@ -157,27 +157,22 @@ export default function Messaging() {
   };
 
   const uploadPhoto = async (file: File): Promise<string> => {
-    // Upload to Telegraph (Telegram's free image hosting)
+    // Upload via our API endpoint (which uploads to Telegraph)
     const formData = new FormData();
     formData.append('file', file);
 
     try {
-      const response = await fetch('https://telegra.ph/upload', {
+      const response = await fetch('/api/upload/photo', {
         method: 'POST',
         body: formData
       });
 
-      if (!response.ok) {
-        throw new Error('Upload failed');
-      }
-
       const data = await response.json();
 
-      if (data && data[0] && data[0].src) {
-        // Telegraph returns relative URL, make it absolute
-        return 'https://telegra.ph' + data[0].src;
+      if (data.success && data.url) {
+        return data.url;
       } else {
-        throw new Error('Invalid response from upload service');
+        throw new Error(data.error || 'Upload failed');
       }
     } catch (error) {
       console.error('Photo upload error:', error);
