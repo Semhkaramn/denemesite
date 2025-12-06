@@ -210,11 +210,14 @@ export default function Messaging() {
         }
       }
 
-      // Validate and fix photo URL if provided
+      // Validate and fix photo URL if provided (but not for base64 data URIs)
       if (finalPhotoUrl) {
         const trimmedUrl = finalPhotoUrl.trim();
-        if (!trimmedUrl.startsWith('http://') && !trimmedUrl.startsWith('https://')) {
+        // Don't add https:// to base64 data URIs
+        if (!trimmedUrl.startsWith('http://') && !trimmedUrl.startsWith('https://') && !trimmedUrl.startsWith('data:')) {
           finalPhotoUrl = 'https://' + trimmedUrl;
+        } else {
+          finalPhotoUrl = trimmedUrl;
         }
       }
 
