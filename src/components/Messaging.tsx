@@ -762,7 +762,7 @@ export default function Messaging() {
               <div className="flex gap-2">
                 <Button
                   variant="outline"
-                  onClick={() => openAddButtonDialog('inline')}
+                  onClick={() => openAddButtonDialog('inline', -1)}
                   className="flex-1"
                   size="sm"
                 >
@@ -771,65 +771,75 @@ export default function Messaging() {
                 </Button>
               </div>
             ) : (
-              <div className="space-y-3">
-                {buttons.map((btn, index) => (
-                  <div key={index} className="space-y-2">
-                    {/* Button Display and Yan Ekle */}
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="group relative flex-1 p-3 border rounded-lg hover:border-blue-400 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-all cursor-pointer"
-                        onClick={() => openEditButtonDialog(index)}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium text-sm">{btn.text}</span>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-xs">
-                              {btn.position === 'inline' ? 'Yanyana' : 'Altalta'}
-                            </Badge>
-                            <Pencil className="w-4 h-4 text-zinc-400 group-hover:text-blue-600 transition-colors" />
-                          </div>
-                        </div>
-                        <div className="text-xs text-zinc-500 mt-1 truncate">
-                          {btn.url}
-                        </div>
-                      </div>
+              <div className="space-y-2">
+                {(() => {
+                  const rows: number[][] = [];
+                  let currentRow: number[] = [];
 
-                      {/* Yan Ekle Button */}
+                  buttons.forEach((btn, index) => {
+                    if (btn.position === 'below' && currentRow.length > 0) {
+                      rows.push(currentRow);
+                      currentRow = [];
+                    }
+                    currentRow.push(index);
+                    if (btn.position === 'below') {
+                      rows.push(currentRow);
+                      currentRow = [];
+                    }
+                  });
+                  if (currentRow.length > 0) {
+                    rows.push(currentRow);
+                  }
+
+                  return rows.map((row, rowIndex) => (
+                    <div key={rowIndex} className="flex flex-wrap items-center gap-2">
+                      {row.map((btnIndex) => {
+                        const btn = buttons[btnIndex];
+                        return (
+                          <div key={btnIndex} className="flex items-center gap-1">
+                            <div
+                              className="group relative px-4 py-2 border rounded-lg hover:border-blue-400 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-all cursor-pointer flex items-center gap-2"
+                              onClick={() => openEditButtonDialog(btnIndex)}
+                            >
+                              <span className="font-medium text-sm">{btn.text}</span>
+                              <Pencil className="w-3 h-3 text-zinc-400 group-hover:text-blue-600 transition-colors" />
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeButton(btnIndex)}
+                              className="h-6 w-6 hover:bg-red-100 hover:text-red-600"
+                            >
+                              <X className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        );
+                      })}
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => openAddButtonDialog('inline', index)}
-                        className="h-auto py-2 px-3"
+                        onClick={() => openAddButtonDialog('inline', row[row.length - 1])}
+                        className="h-8 px-3"
                       >
-                        <ArrowRight className="w-3 h-3 mr-1" />
+                        <Plus className="w-3 h-3 mr-1" />
                         Yan Ekle
                       </Button>
-
-                      {/* Delete Button */}
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        onClick={() => removeButton(index)}
-                        className="h-10 w-10"
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
                     </div>
+                  ));
+                })()}
 
-                    {/* Alt Ekle Button */}
-                    <div className="flex justify-center">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openAddButtonDialog('below', index)}
-                        className="w-32"
-                      >
-                        <ArrowDown className="w-3 h-3 mr-1" />
-                        Alt Ekle
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                {/* Alt Ekle at the bottom */}
+                <div className="flex justify-center pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openAddButtonDialog('below', buttons.length - 1)}
+                    className="px-4"
+                  >
+                    <Plus className="w-3 h-3 mr-1" />
+                    Alt Ekle
+                  </Button>
+                </div>
               </div>
             )}
           </div>
