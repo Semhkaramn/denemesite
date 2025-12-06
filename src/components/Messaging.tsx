@@ -762,73 +762,183 @@ export default function Messaging() {
             </TabsContent>
           </Tabs>
 
-          {/* Buttons Section - Redesigned */}
-          <div className="space-y-3">
-            <Label>Butonlar (Inline Keyboard)</Label>
-
-            {buttons.length === 0 ? (
-              <div className="flex gap-2">
+          {/* Buttons Section - Modern Design */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-base font-semibold">Inline Keyboard Butonlar</Label>
+              {buttons.length > 0 && (
                 <Button
                   variant="outline"
-                  onClick={() => openAddButtonDialog('inline', -1)}
-                  className="flex-1"
                   size="sm"
+                  onClick={() => setButtons([])}
+                  className="h-7 text-xs"
+                >
+                  <Trash2 className="w-3 h-3 mr-1" />
+                  Tümünü Temizle
+                </Button>
+              )}
+            </div>
+
+            {buttons.length === 0 ? (
+              <div className="border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl p-8 text-center">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/20 dark:to-purple-900/20 mb-4">
+                  <Square className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                </div>
+                <h3 className="font-semibold text-lg mb-2">Henüz buton eklenmedi</h3>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4 max-w-sm mx-auto">
+                  Mesajınıza interaktif butonlar ekleyerek kullanıcı deneyimini geliştirin
+                </p>
+                <Button
+                  onClick={() => openAddButtonDialog('below', -1)}
+                  className="shadow-lg"
                 >
                   <Plus className="w-4 h-4 mr-2" />
-                  Buton Ekle
+                  İlk Butonu Ekle
                 </Button>
               </div>
             ) : (
-              <div className="space-y-2">
-                {buttons.map((btn, btnIndex) => (
-                  <div key={btnIndex} className="space-y-2">
-                    {/* Button Row */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {/* The Button */}
-                      <div
-                        className="group relative px-3 py-2 border rounded-lg hover:border-blue-400 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-all cursor-pointer flex items-center gap-2 flex-shrink min-w-0"
-                        onClick={() => openEditButtonDialog(btnIndex)}
-                      >
-                        <span className="font-medium text-sm truncate">{btn.text}</span>
-                        <Pencil className="w-3 h-3 text-zinc-400 group-hover:text-blue-600 transition-colors flex-shrink-0" />
-                      </div>
+              <div className="border rounded-xl bg-gradient-to-br from-zinc-50 to-zinc-100/50 dark:from-zinc-900/50 dark:to-zinc-900/30 p-6">
+                {/* Preview Section */}
+                <div className="mb-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                    <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                      Önizleme
+                    </span>
+                  </div>
+                  <div className="bg-white dark:bg-zinc-950 rounded-lg p-4 border shadow-sm">
+                    <div className="space-y-2">
+                      {(() => {
+                        const rows: number[][] = [];
+                        let currentRow: number[] = [];
 
-                      {/* Delete Button */}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeButton(btnIndex)}
-                        className="h-8 w-8 hover:bg-red-100 hover:text-red-600 flex-shrink-0"
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
+                        buttons.forEach((btn, index) => {
+                          if (btn.position === 'below' && currentRow.length > 0) {
+                            rows.push(currentRow);
+                            currentRow = [];
+                          }
+                          currentRow.push(index);
+                          if (btn.position === 'below') {
+                            rows.push(currentRow);
+                            currentRow = [];
+                          }
+                        });
+                        if (currentRow.length > 0) {
+                          rows.push(currentRow);
+                        }
 
-                      {/* Add Next to This Button */}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openAddButtonDialog('inline', btnIndex)}
-                        className="h-8 px-3 flex-shrink-0"
-                      >
-                        <Plus className="w-3 h-3 mr-1" />
-                        Yan Ekle
-                      </Button>
-                    </div>
-
-                    {/* Add Below This Button */}
-                    <div className="flex justify-center">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openAddButtonDialog('below', btnIndex)}
-                        className="h-7 px-3 text-xs"
-                      >
-                        <Plus className="w-3 h-3 mr-1" />
-                        Alt Ekle
-                      </Button>
+                        return rows.map((row, rowIndex) => (
+                          <div key={rowIndex} className="flex gap-2">
+                            {row.map((btnIndex) => {
+                              const btn = buttons[btnIndex];
+                              return (
+                                <div
+                                  key={btnIndex}
+                                  className="flex-1 px-3 py-2 bg-blue-500 text-white rounded-lg text-center text-sm font-medium shadow-sm hover:bg-blue-600 transition-colors cursor-default"
+                                >
+                                  {btn.text}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ));
+                      })()}
                     </div>
                   </div>
-                ))}
+                </div>
+
+                {/* Buttons Editor */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+                    <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                      Düzenle
+                    </span>
+                  </div>
+
+                  {buttons.map((btn, btnIndex) => {
+                    // Check if next button should be on same row (inline)
+                    const nextBtn = buttons[btnIndex + 1];
+                    const isLastInRow = !nextBtn || nextBtn.position === 'below' || btn.position === 'below';
+
+                    return (
+                      <div key={btnIndex}>
+                        <div className="flex items-center gap-2">
+                          {/* Button Preview */}
+                          <div className="flex-1 group relative bg-white dark:bg-zinc-950 border-2 border-zinc-200 dark:border-zinc-800 rounded-lg px-4 py-2.5 hover:border-blue-400 dark:hover:border-blue-600 transition-all">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                                <Link2 className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                                <div className="min-w-0 flex-1">
+                                  <div className="font-semibold text-sm truncate">{btn.text}</div>
+                                  <div className="text-xs text-zinc-500 truncate">{btn.url}</div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openEditButtonDialog(btnIndex)}
+                                  className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  title="Düzenle"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removeButton(btnIndex)}
+                                  className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-600"
+                                  title="Sil"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Position Badge */}
+                          <div className="flex-shrink-0">
+                            {btn.position === 'below' ? (
+                              <Badge variant="outline" className="bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-800 text-orange-700 dark:text-orange-400 text-xs">
+                                <ArrowDown className="w-3 h-3 mr-1" />
+                                Alt
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 text-xs">
+                                <ArrowRight className="w-3 h-3 mr-1" />
+                                Yan
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Quick Add Buttons */}
+                        <div className="flex items-center justify-center gap-2 my-2">
+                          {!isLastInRow && (
+                            <button
+                              onClick={() => openAddButtonDialog('inline', btnIndex)}
+                              className="group flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-100 dark:bg-green-950/30 hover:bg-green-200 dark:hover:bg-green-950/50 transition-all text-xs font-medium text-green-700 dark:text-green-400"
+                            >
+                              <Plus className="w-3 h-3" />
+                              Yanına Ekle
+                              <ArrowRight className="w-3 h-3 opacity-50" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => openAddButtonDialog('below', btnIndex)}
+                            className="group flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-100 dark:bg-orange-950/30 hover:bg-orange-200 dark:hover:bg-orange-950/50 transition-all text-xs font-medium text-orange-700 dark:text-orange-400"
+                          >
+                            <Plus className="w-3 h-3" />
+                            Altına Ekle
+                            <ArrowDown className="w-3 h-3 opacity-50" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
@@ -1018,60 +1128,158 @@ export default function Messaging() {
         </DialogContent>
       </Dialog>
 
-      {/* Add/Edit Button Dialog */}
+      {/* Add/Edit Button Dialog - Modern */}
       <Dialog open={showAddButtonDialog} onOpenChange={setShowAddButtonDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>
-              {isEditMode ? 'Buton Düzenle' : 'Buton Ekle'}
-            </DialogTitle>
-            <DialogDescription>
-              {isEditMode
-                ? 'Buton bilgilerini güncelleyin'
-                : `${newButtonPosition === 'inline' ? 'Yanyana' : 'Altalta'} buton ekleyin`
-              }
-            </DialogDescription>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+                {isEditMode ? (
+                  <Pencil className="w-5 h-5 text-white" />
+                ) : (
+                  <Plus className="w-5 h-5 text-white" />
+                )}
+              </div>
+              <div>
+                <DialogTitle className="text-xl">
+                  {isEditMode ? 'Buton Düzenle' : 'Yeni Buton Ekle'}
+                </DialogTitle>
+                <DialogDescription>
+                  {isEditMode
+                    ? 'Buton bilgilerini güncelleyin'
+                    : 'Mesajınıza interaktif buton ekleyin'
+                  }
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
+          <div className="space-y-5 py-6">
+            {/* Position Selector */}
+            {!isEditMode && (
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Buton Konumu</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setNewButtonPosition('inline')}
+                    className={`p-4 rounded-xl border-2 transition-all ${
+                      newButtonPosition === 'inline'
+                        ? 'border-green-500 bg-green-50 dark:bg-green-950/20'
+                        : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <ArrowRight className={`w-5 h-5 ${newButtonPosition === 'inline' ? 'text-green-600' : 'text-zinc-400'}`} />
+                    </div>
+                    <div className="text-sm font-semibold mb-1">Yan Yana</div>
+                    <div className="text-xs text-zinc-500">Önceki butonun yanına</div>
+                  </button>
+                  <button
+                    onClick={() => setNewButtonPosition('below')}
+                    className={`p-4 rounded-xl border-2 transition-all ${
+                      newButtonPosition === 'below'
+                        ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/20'
+                        : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <ArrowDown className={`w-5 h-5 ${newButtonPosition === 'below' ? 'text-orange-600' : 'text-zinc-400'}`} />
+                    </div>
+                    <div className="text-sm font-semibold mb-1">Alt Alta</div>
+                    <div className="text-xs text-zinc-500">Yeni satırda</div>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Button Text */}
             <div className="space-y-2">
-              <Label htmlFor="buttonText">Buton Metni</Label>
-              <Input
-                id="buttonText"
-                placeholder="Örn: Web Sitesi"
-                value={newButtonText}
-                onChange={(e) => setNewButtonText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    confirmAddButton();
-                  }
-                }}
-                autoFocus
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="buttonUrl">URL</Label>
-              <Input
-                id="buttonUrl"
-                placeholder="Örn: https://example.com"
-                value={newButtonUrl}
-                onChange={(e) => setNewButtonUrl(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    confirmAddButton();
-                  }
-                }}
-              />
+              <Label htmlFor="buttonText" className="text-sm font-semibold">
+                Buton Metni *
+              </Label>
+              <div className="relative">
+                <Square className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                <Input
+                  id="buttonText"
+                  placeholder="örn: Web Sitemiz, Telegram Kanalı, Destek"
+                  value={newButtonText}
+                  onChange={(e) => setNewButtonText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      document.getElementById('buttonUrl')?.focus();
+                    }
+                  }}
+                  className="pl-10 h-11"
+                  autoFocus
+                />
+              </div>
+              <p className="text-xs text-zinc-500">Kullanıcının göreceği metin</p>
             </div>
 
+            {/* Button URL */}
+            <div className="space-y-2">
+              <Label htmlFor="buttonUrl" className="text-sm font-semibold">
+                Bağlantı Adresi (URL) *
+              </Label>
+              <div className="relative">
+                <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                <Input
+                  id="buttonUrl"
+                  placeholder="örn: https://example.com"
+                  value={newButtonUrl}
+                  onChange={(e) => setNewButtonUrl(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      confirmAddButton();
+                    }
+                  }}
+                  className="pl-10 h-11"
+                />
+              </div>
+              <p className="text-xs text-zinc-500">Butona tıklandığında açılacak link</p>
+            </div>
+
+            {/* Preview */}
+            {newButtonText && (
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Önizleme</Label>
+                <div className="p-4 bg-gradient-to-br from-zinc-50 to-zinc-100/50 dark:from-zinc-900/50 dark:to-zinc-900/30 rounded-lg border">
+                  <div className="bg-white dark:bg-zinc-950 rounded-lg p-3 border shadow-sm">
+                    <div className="px-4 py-2 bg-blue-500 text-white rounded-lg text-center text-sm font-medium">
+                      {newButtonText}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddButtonDialog(false)}>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowAddButtonDialog(false)}
+              className="flex-1"
+            >
               İptal
             </Button>
-            <Button onClick={confirmAddButton}>
-              {isEditMode ? 'Güncelle' : 'Tamam'}
+            <Button
+              onClick={confirmAddButton}
+              disabled={!newButtonText.trim() || !newButtonUrl.trim()}
+              className="flex-1 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
+            >
+              {isEditMode ? (
+                <>
+                  <Pencil className="w-4 h-4 mr-2" />
+                  Güncelle
+                </>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Ekle
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
