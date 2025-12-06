@@ -4,7 +4,7 @@ import { query } from '@/lib/db';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { hours, codesToDistribute, onePerUser, sendAnnouncement, pinMessage } = body;
+    const { hours, codesToDistribute, onePerUser, sendAnnouncement, pinMessage, minMessages } = body;
 
     if (!hours || hours <= 0) {
       return NextResponse.json({
@@ -63,6 +63,14 @@ export async function POST(request: Request) {
 
     // Sort times
     times.sort((a, b) => a.getTime() - b.getTime());
+
+    // Update codes table with min_messages
+    const minMessagesValue = minMessages || 0;
+    for (const code of codes) {
+      await query(`
+        UPDATE codes SET min_messages = $1 WHERE code = $2
+      `, [minMessagesValue, code]);
+    }
 
     // Insert schedule
     for (let i = 0; i < codes.length; i++) {
