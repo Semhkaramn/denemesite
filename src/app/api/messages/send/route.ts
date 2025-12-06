@@ -30,17 +30,18 @@ export async function POST(request: Request) {
     let targetUsers: TargetUser[] = [];
 
     if (sendToAll) {
-      // Get all users
+      // Get all users who started the bot
       const result = await query(`
         SELECT user_id FROM message_stats
+        WHERE started_bot = TRUE
         ORDER BY user_id
       `);
       targetUsers = result.rows;
     } else if (userIds && Array.isArray(userIds) && userIds.length > 0) {
-      // Get selected users
+      // Get selected users who started the bot
       const result = await query(`
         SELECT user_id FROM message_stats
-        WHERE user_id = ANY($1)
+        WHERE user_id = ANY($1) AND started_bot = TRUE
       `, [userIds]);
       targetUsers = result.rows;
     } else {
