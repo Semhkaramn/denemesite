@@ -67,7 +67,7 @@ export default function Randy() {
     fetchSchedules();
     // Set default start time to current Turkish time
     setStartTime(nowTRForInput());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, []);
 
   useEffect(() => {
