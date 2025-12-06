@@ -185,7 +185,6 @@ export default function Messaging() {
 
     try {
       // For photo file, we need URL not base64 - warn user
-      let finalPhotoUrl = photoUrl;
       if (photoFile) {
         toast.error('Fotoğraf dosyası yükleme henüz desteklenmiyor. Lütfen fotoğraf URL\'si kullanın.');
         setLoading(false);
@@ -193,7 +192,7 @@ export default function Messaging() {
       }
 
       // Validate photo URL if provided
-      if (finalPhotoUrl && !finalPhotoUrl.startsWith('http')) {
+      if (photoUrl && !photoUrl.startsWith('http')) {
         toast.error('Geçerli bir URL giriniz (http:// veya https:// ile başlamalı)');
         setLoading(false);
         return;
@@ -229,7 +228,7 @@ export default function Messaging() {
           sendToAll: messageType === 'all',
           userIds: messageType === 'selected' ? Array.from(selectedUsers) : undefined,
           disableWebPagePreview,
-          photoUrl: finalPhotoUrl || undefined,
+          photoUrl: photoUrl || undefined,
           inlineKeyboard
         })
       });
