@@ -15,6 +15,8 @@ export async function POST(request: Request) {
       userIds,
       disableWebPagePreview,
       photoUrl,
+      mediaType,
+      buttonLayout,
       inlineKeyboard
     } = body;
 
@@ -67,9 +69,9 @@ export async function POST(request: Request) {
     const logResult = await query(`
       INSERT INTO message_logs (
         message_text, parse_mode, recipient_count, message_preview, sent_at,
-        disable_web_page_preview, photo_url, inline_keyboard
+        disable_web_page_preview, photo_url, media_type, button_layout, inline_keyboard
       )
-      VALUES ($1, $2, $3, $4, NOW(), $5, $6, $7)
+      VALUES ($1, $2, $3, $4, NOW(), $5, $6, $7, $8, $9)
       RETURNING id
     `, [
       message,
@@ -78,6 +80,8 @@ export async function POST(request: Request) {
       messagePreview,
       disableWebPagePreview !== false,  // Default to true
       photoUrl || null,
+      mediaType || 'photo',
+      buttonLayout || 'inline',
       inlineKeyboard ? JSON.stringify(inlineKeyboard) : null
     ]);
 
@@ -88,9 +92,9 @@ export async function POST(request: Request) {
       await query(`
         INSERT INTO pending_messages (
           user_id, message_text, parse_mode, message_log_id, status,
-          disable_web_page_preview, photo_url, inline_keyboard
+          disable_web_page_preview, photo_url, media_type, button_layout, inline_keyboard
         )
-        VALUES ($1, $2, $3, $4, 'pending', $5, $6, $7)
+        VALUES ($1, $2, $3, $4, 'pending', $5, $6, $7, $8, $9)
         ON CONFLICT (user_id, message_log_id) DO NOTHING
       `, [
         user.user_id,
@@ -99,6 +103,8 @@ export async function POST(request: Request) {
         messageLogId,
         disableWebPagePreview !== false,  // Default to true
         photoUrl || null,
+        mediaType || 'photo',
+        buttonLayout || 'inline',
         inlineKeyboard ? JSON.stringify(inlineKeyboard) : null
       ]);
     }
