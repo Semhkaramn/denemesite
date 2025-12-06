@@ -39,6 +39,7 @@ export default function Promocodes() {
   const [onePerUser, setOnePerUser] = useState(true);
   const [sendAnnouncement, setSendAnnouncement] = useState(true);
   const [pinMessage, setPinMessage] = useState(true);
+  const [minMessages, setMinMessages] = useState('0');
   const [defaultLink, setDefaultLink] = useState('');
   const [showBulkDialog, setShowBulkDialog] = useState(false);
   const [showPlanDialog, setShowPlanDialog] = useState(false);
@@ -138,7 +139,8 @@ export default function Promocodes() {
         codesToDistribute: distributeCount,
         onePerUser,
         sendAnnouncement,
-        pinMessage
+        pinMessage,
+        minMessages: parseInt(minMessages) || 0
       })
     }).then(async (response) => {
       const data = await response.json();
@@ -367,6 +369,20 @@ export default function Promocodes() {
                   disabled={!sendAnnouncement}
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="minMessages">Minimum Mesaj Sayısı</Label>
+                <Input
+                  id="minMessages"
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={minMessages}
+                  onChange={(e) => setMinMessages(e.target.value)}
+                />
+                <p className="text-xs text-zinc-500">
+                  Kullanıcının kod alabilmesi için gereken minimum mesaj sayısı (0 = şart yok)
+                </p>
+              </div>
               <div className="bg-zinc-100 dark:bg-zinc-800 p-3 rounded-lg text-sm">
                 <p className="font-medium mb-1">Özet:</p>
                 <p>• Toplam Kullanılmamış Kod: {unusedCodesCount}</p>
@@ -519,7 +535,7 @@ export default function Promocodes() {
         onOpenChange={setShowResetConfirm}
         onConfirm={confirmReset}
         title="Tüm Kodları Sil"
-        description="TÜM KODLARI VE PLANI SİLMEK İSTEDİĞİNİZE EMİN MİSİNİZ?\n\nBu işlem geri alınamaz!"
+        description="TÜM KODLARI VE PLANI SİLMEK İSTEDİĞİNİZDE EMİN MİSİNİZ?\n\nBu işlem geri alınamaz!"
         confirmText="Evet, Sil"
         cancelText="İptal"
         variant="destructive"
