@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
-import { Send, Users, Image, Link2, Square, Code, UserCheck, Search, X, Upload, Trash2, Video, FileImage, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter } from 'lucide-react';
+import { Send, Users, Image, Link2, Square, Code, UserCheck, Search, X, Upload, Trash2, Video, FileImage, Plus, ArrowRight, ArrowDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatTR } from '@/lib/date-utils';
 
@@ -31,6 +31,12 @@ interface MessageHistory {
   sent_at: string;
 }
 
+interface ButtonItem {
+  text: string;
+  url: string;
+  position: 'inline' | 'below';
+}
+
 export default function Messaging() {
   const [messageType, setMessageType] = useState<'all' | 'selected'>('all');
   const [messageText, setMessageText] = useState('');
@@ -39,15 +45,14 @@ export default function Messaging() {
   const [parseMode, setParseMode] = useState<'HTML' | 'Markdown'>('HTML');
   const [disableWebPagePreview] = useState(true);
 
-  // Media states
+  // Media states - auto-detect type
   const [mediaType, setMediaType] = useState<'photo' | 'video' | 'gif'>('photo');
   const [photoUrl, setPhotoUrl] = useState('');
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>('');
 
-  // Button states
-  const [buttons, setButtons] = useState<Array<{text: string, url: string}>>([]);
-  const [buttonLayout, setButtonLayout] = useState<'inline' | 'vertical'>('inline');
+  // Button states with positioning
+  const [buttons, setButtons] = useState<ButtonItem[]>([]);
 
   // Selected users
   const [selectedUsers, setSelectedUsers] = useState<Set<number>>(new Set());
@@ -124,40 +129,35 @@ export default function Messaging() {
     }
   };
 
+  // Auto-detect media type from file
+  const detectMediaType = (file: File): 'photo' | 'video' | 'gif' => {
+    if (file.type.includes('gif')) return 'gif';
+    if (file.type.startsWith('video/')) return 'video';
+    if (file.type.startsWith('image/')) return 'photo';
+    return 'photo';
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 50 * 1024 * 1024) { // 50MB limit for videos
+      if (file.size > 50 * 1024 * 1024) {
         toast.error('Dosya boyutu 50MB\'dan küçük olmalıdır');
         return;
       }
 
-      // Check file type based on selected media type
-      const isImage = file.type.startsWith('image/');
-      const isVideo = file.type.startsWith('video/');
-
-      if (mediaType === 'photo' && !isImage) {
-        toast.error('Sadece resim dosyaları yüklenebilir');
-        return;
-      }
-
-      if (mediaType === 'video' && !isVideo) {
-        toast.error('Sadece video dosyaları yüklenebilir');
-        return;
-      }
-
-      if (mediaType === 'gif' && !file.type.includes('gif')) {
-        toast.error('Sadece GIF dosyaları yüklenebilir');
-        return;
-      }
+      // Auto-detect media type
+      const detectedType = detectMediaType(file);
+      setMediaType(detectedType);
 
       setPhotoFile(file);
-      setPhotoUrl(''); // Clear URL if file is selected
+      setPhotoUrl('');
       const reader = new FileReader();
       reader.onloadend = () => {
         setPhotoPreview(reader.result as string);
       };
       reader.readAsDataURL(file);
+
+      toast.success(`${detectedType === 'photo' ? 'Fotoğraf' : detectedType === 'video' ? 'Video' : 'GIF'} yüklendi`);
     }
   };
 
@@ -170,23 +170,9 @@ export default function Messaging() {
         return;
       }
 
-      const isImage = file.type.startsWith('image/');
-      const isVideo = file.type.startsWith('video/');
-
-      if (mediaType === 'photo' && !isImage) {
-        toast.error('Sadece resim dosyaları yüklenebilir');
-        return;
-      }
-
-      if (mediaType === 'video' && !isVideo) {
-        toast.error('Sadece video dosyaları yüklenebilir');
-        return;
-      }
-
-      if (mediaType === 'gif' && !file.type.includes('gif')) {
-        toast.error('Sadece GIF dosyaları yüklenebilir');
-        return;
-      }
+      // Auto-detect media type
+      const detectedType = detectMediaType(file);
+      setMediaType(detectedType);
 
       setPhotoFile(file);
       setPhotoUrl('');
@@ -195,6 +181,8 @@ export default function Messaging() {
         setPhotoPreview(reader.result as string);
       };
       reader.readAsDataURL(file);
+
+      toast.success(`${detectedType === 'photo' ? 'Fotoğraf' : detectedType === 'video' ? 'Video' : 'GIF'} yüklendi`);
     }
   };
 
@@ -205,7 +193,6 @@ export default function Messaging() {
   };
 
   const uploadPhoto = async (file: File): Promise<string> => {
-    // Upload via our API endpoint (which uploads to Telegraph)
     const formData = new FormData();
     formData.append('file', file);
 
@@ -228,15 +215,30 @@ export default function Messaging() {
     }
   };
 
+  const addButton = (position: 'inline' | 'below') => {
+    setButtons([...buttons, { text: '', url: '', position }]);
+  };
+
+  const removeButton = (index: number) => {
+    setButtons(buttons.filter((_, i) => i !== index));
+  };
+
+  const updateButton = (index: number, field: 'text' | 'url', value: string) => {
+    const newButtons = [...buttons];
+    newButtons[index][field] = value;
+    setButtons(newButtons);
+  };
+
   const handleSendMessage = async () => {
     const message = useHTML ? messageHTML : messageText;
 
     if (!message.trim() && !photoUrl && !photoFile) {
-      toast.error('Lütfen bir mesaj veya fotoğraf ekleyin!');
+      toast.error('Lütfen bir mesaj veya medya ekleyin!');
       return;
     }
 
     if (messageType === 'selected' && selectedUsers.size === 0) {
+      setShowUserSelector(true);
       toast.error('Lütfen en az bir kullanıcı seçin!');
       return;
     }
@@ -244,24 +246,21 @@ export default function Messaging() {
     setLoading(true);
 
     try {
-      // Upload photo file if exists
       let finalPhotoUrl = photoUrl;
       if (photoFile) {
-        toast.info('Fotoğraf yükleniyor...');
+        toast.info('Medya yükleniyor...');
         try {
           finalPhotoUrl = await uploadPhoto(photoFile);
-          toast.success('Fotoğraf başarıyla yüklendi!');
+          toast.success('Medya başarıyla yüklendi!');
         } catch (error) {
-          toast.error('Fotoğraf yüklenemedi. Lütfen tekrar deneyin.');
+          toast.error('Medya yüklenemedi. Lütfen tekrar deneyin.');
           setLoading(false);
           return;
         }
       }
 
-      // Validate and fix photo URL if provided (but not for base64 data URIs)
       if (finalPhotoUrl) {
         const trimmedUrl = finalPhotoUrl.trim();
-        // Don't add https:// to base64 data URIs
         if (!trimmedUrl.startsWith('http://') && !trimmedUrl.startsWith('https://') && !trimmedUrl.startsWith('data:')) {
           finalPhotoUrl = 'https://' + trimmedUrl;
         } else {
@@ -269,13 +268,11 @@ export default function Messaging() {
         }
       }
 
-      // Prepare inline keyboard if buttons exist
+      // Build inline keyboard with positioning
       let inlineKeyboard = null;
       if (buttons.length > 0) {
-        // Filter out empty buttons
         const validButtons = buttons.filter(btn => btn.text.trim() && btn.url.trim());
         if (validButtons.length > 0) {
-          // Auto-add https:// to URLs if needed
           const processedButtons = validButtons.map(btn => {
             let url = btn.url.trim();
             if (!url.startsWith('http://') && !url.startsWith('https://')) {
@@ -283,16 +280,31 @@ export default function Messaging() {
             }
             return {
               text: btn.text,
-              url: url
+              url: url,
+              position: btn.position
             };
           });
 
-          // Layout: inline = all buttons in one row, vertical = one button per row
-          if (buttonLayout === 'vertical') {
-            inlineKeyboard = processedButtons.map(btn => [btn]);
-          } else {
-            inlineKeyboard = [processedButtons];
+          // Group buttons by rows based on position
+          const rows: any[][] = [];
+          let currentRow: any[] = [];
+
+          for (const btn of processedButtons) {
+            if (btn.position === 'below' && currentRow.length > 0) {
+              rows.push(currentRow);
+              currentRow = [];
+            }
+            currentRow.push({ text: btn.text, url: btn.url });
+            if (btn.position === 'below') {
+              rows.push(currentRow);
+              currentRow = [];
+            }
           }
+          if (currentRow.length > 0) {
+            rows.push(currentRow);
+          }
+
+          inlineKeyboard = rows;
         }
       }
 
@@ -308,7 +320,6 @@ export default function Messaging() {
           photoUrl: finalPhotoUrl || undefined,
           inlineKeyboard,
           mediaType: finalPhotoUrl ? mediaType : undefined,
-          buttonLayout
         })
       });
 
@@ -403,137 +414,12 @@ export default function Messaging() {
       <Card className="border-0 shadow-lg">
         <CardHeader>
           <CardTitle>Mesaj Gönder</CardTitle>
-          <CardDescription>Kullanıcılara HTML destekli mesaj gönderin</CardDescription>
+          <CardDescription>Kullanıcılara medya ve butonlarla zenginleştirilmiş mesaj gönderin</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Message Type Selector */}
+          {/* Media Upload - TOP */}
           <div className="space-y-2">
-            <Label>Gönderim Tipi</Label>
-            <div className="flex gap-4">
-              <Button
-                variant={messageType === 'all' ? 'default' : 'outline'}
-                onClick={() => setMessageType('all')}
-                className="flex-1"
-              >
-                <Users className="w-4 h-4 mr-2" />
-                Tüm Kullanıcılar
-              </Button>
-              <Button
-                variant={messageType === 'selected' ? 'default' : 'outline'}
-                onClick={() => {
-                  setMessageType('selected');
-                  setShowUserSelector(true);
-                }}
-                className="flex-1"
-              >
-                <UserCheck className="w-4 h-4 mr-2" />
-                Seçili Kullanıcılar ({selectedUsers.size})
-              </Button>
-            </div>
-          </div>
-
-          {/* Parse Mode */}
-          <div className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-900 rounded-lg">
-            <div>
-              <Label>Mesaj Formatı</Label>
-              <p className="text-sm text-zinc-500">HTML formatında mesaj gönderin</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant={parseMode === 'Markdown' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setParseMode('Markdown')}
-              >
-                Markdown
-              </Button>
-              <Button
-                variant={parseMode === 'HTML' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setParseMode('HTML')}
-              >
-                HTML
-              </Button>
-            </div>
-          </div>
-
-          {/* Tag Helpers */}
-          <div className="space-y-2">
-            <Label>Etiketler (Tags)</Label>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => insertTag('{username}')}
-                className="text-xs"
-              >
-                <Code className="w-3 h-3 mr-1" />
-                {'{username}'}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => insertTag('{mention}')}
-                className="text-xs"
-              >
-                <Code className="w-3 h-3 mr-1" />
-                {'{mention}'}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => insertTag('{first_name}')}
-                className="text-xs"
-              >
-                <Code className="w-3 h-3 mr-1" />
-                {'{first_name}'}
-              </Button>
-            </div>
-            <p className="text-xs text-zinc-500">
-              Etiketler gönderilirken kullanıcının bilgileriyle değiştirilir
-            </p>
-          </div>
-
-          {/* Media Type Selector */}
-          <div className="space-y-2">
-            <Label>Medya Tipi</Label>
-            <div className="flex gap-2">
-              <Button
-                variant={mediaType === 'photo' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setMediaType('photo')}
-                className="flex-1"
-              >
-                <Image className="w-4 h-4 mr-2" />
-                Fotoğraf
-              </Button>
-              <Button
-                variant={mediaType === 'video' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setMediaType('video')}
-                className="flex-1"
-              >
-                <Video className="w-4 h-4 mr-2" />
-                Video
-              </Button>
-              <Button
-                variant={mediaType === 'gif' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setMediaType('gif')}
-                className="flex-1"
-              >
-                <FileImage className="w-4 h-4 mr-2" />
-                GIF
-              </Button>
-            </div>
-          </div>
-
-          {/* Media Upload */}
-          <div className="space-y-2">
-            <Label>
-              {mediaType === 'photo' && 'Fotoğraf (Opsiyonel)'}
-              {mediaType === 'video' && 'Video (Opsiyonel)'}
-              {mediaType === 'gif' && 'GIF (Opsiyonel)'}
-            </Label>
+            <Label>Medya (Opsiyonel)</Label>
 
             {!photoPreview && !photoUrl && (
               <div
@@ -544,146 +430,65 @@ export default function Messaging() {
                 <input
                   type="file"
                   id="photoFile"
-                  accept={
-                    mediaType === 'photo' ? 'image/*' :
-                    mediaType === 'video' ? 'video/*' :
-                    'image/gif'
-                  }
+                  accept="image/*,video/*"
                   onChange={handleFileSelect}
                   className="hidden"
                 />
                 <label htmlFor="photoFile" className="cursor-pointer">
                   <Upload className="w-12 h-12 mx-auto mb-3 text-zinc-400" />
                   <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                    {mediaType === 'photo' && 'Resim yüklemek için tıklayın veya sürükleyin'}
-                    {mediaType === 'video' && 'Video yüklemek için tıklayın veya sürükleyin'}
-                    {mediaType === 'gif' && 'GIF yüklemek için tıklayın veya sürükleyin'}
+                    Fotoğraf, Video veya GIF yükleyin
                   </p>
                   <p className="text-xs text-zinc-500">
-                    {mediaType === 'photo' && 'PNG, JPG (Maks. 50MB)'}
-                    {mediaType === 'video' && 'MP4, MOV (Maks. 50MB)'}
-                    {mediaType === 'gif' && 'GIF (Maks. 50MB)'}
+                    Dosya türü otomatik algılanacak (Maks. 50MB)
                   </p>
                 </label>
               </div>
             )}
 
-            {/* Or URL Input */}
             {!photoPreview && !photoFile && (
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-zinc-300 dark:border-zinc-700" />
+              <>
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-zinc-300 dark:border-zinc-700" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-white dark:bg-zinc-950 px-2 text-zinc-500">Veya URL</span>
+                  </div>
                 </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-white dark:bg-zinc-950 px-2 text-zinc-500">Veya URL</span>
-                </div>
-              </div>
-            )}
-
-            {!photoPreview && !photoFile && (
-              <div className="flex gap-2">
                 <Input
-                  id="photoUrl"
-                  placeholder={
-                    mediaType === 'photo' ? 'https://example.com/photo.jpg' :
-                    mediaType === 'video' ? 'https://example.com/video.mp4' :
-                    'https://example.com/animation.gif'
-                  }
+                  placeholder="https://example.com/photo.jpg"
                   value={photoUrl}
                   onChange={(e) => setPhotoUrl(e.target.value)}
                 />
-              </div>
+              </>
             )}
 
-            {/* Preview */}
             {(photoPreview || photoUrl) && (
               <div className="relative border rounded-lg overflow-hidden">
-                <img
-                  src={photoPreview || photoUrl}
-                  alt="Preview"
-                  className="w-full max-h-64 object-contain bg-zinc-100 dark:bg-zinc-900"
-                />
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="absolute top-2 right-2"
-                  onClick={clearPhoto}
-                >
-                  <Trash2 className="w-4 h-4 mr-1" />
-                  Kaldır
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {/* Buttons */}
-          <div className="space-y-2">
-            <Label>Butonlar (Inline Keyboard)</Label>
-            <div className="space-y-2">
-              {buttons.map((btn, index) => (
-                <div key={index} className="flex gap-2">
-                  <Input
-                    placeholder="Buton Metni"
-                    value={btn.text}
-                    onChange={(e) => {
-                      const newButtons = [...buttons];
-                      newButtons[index].text = e.target.value;
-                      setButtons(newButtons);
-                    }}
+                {mediaType === 'video' ? (
+                  <video
+                    src={photoPreview || photoUrl}
+                    className="w-full max-h-64 object-contain bg-zinc-100 dark:bg-zinc-900"
+                    controls
                   />
-                  <Input
-                    placeholder="URL"
-                    value={btn.url}
-                    onChange={(e) => {
-                      const newButtons = [...buttons];
-                      newButtons[index].url = e.target.value;
-                      setButtons(newButtons);
-                    }}
+                ) : (
+                  <img
+                    src={photoPreview || photoUrl}
+                    alt="Preview"
+                    className="w-full max-h-64 object-contain bg-zinc-100 dark:bg-zinc-900"
                   />
+                )}
+                <div className="absolute top-2 right-2 flex gap-2">
+                  <Badge variant="secondary">
+                    {mediaType === 'photo' ? 'Fotoğraf' : mediaType === 'video' ? 'Video' : 'GIF'}
+                  </Badge>
                   <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => {
-                      const newButtons = buttons.filter((_, i) => i !== index);
-                      setButtons(newButtons);
-                    }}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              ))}
-              <Button
-                variant="outline"
-                onClick={() => setButtons([...buttons, { text: '', url: '' }])}
-                className="w-full"
-              >
-                <Square className="w-4 h-4 mr-2" />
-                Buton Ekle
-              </Button>
-            </div>
-
-            {/* Button Layout */}
-            {buttons.length > 0 && (
-              <div className="space-y-2 mt-3">
-                <Label>Buton Düzeni</Label>
-                <div className="flex gap-2">
-                  <Button
-                    variant={buttonLayout === 'inline' ? 'default' : 'outline'}
+                    variant="destructive"
                     size="sm"
-                    onClick={() => setButtonLayout('inline')}
-                    className="flex-1"
+                    onClick={clearPhoto}
                   >
-                    <AlignHorizontalDistributeCenter className="w-4 h-4 mr-2" />
-                    Yanyana
-                  </Button>
-                  <Button
-                    variant={buttonLayout === 'vertical' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setButtonLayout('vertical')}
-                    className="flex-1"
-                  >
-                    <AlignVerticalDistributeCenter className="w-4 h-4 mr-2" />
-                    Alt Alta
+                    <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
               </div>
@@ -708,66 +513,24 @@ export default function Messaging() {
                   placeholder="Mesajınızı buraya yazın..."
                   value={messageText}
                   onChange={(e) => setMessageText(e.target.value)}
-                  rows={10}
+                  rows={8}
                   className="font-mono"
                 />
               </div>
             </TabsContent>
 
             <TabsContent value="html" className="space-y-4">
-              {/* HTML Shortcuts */}
-              <div className="space-y-2">
-                <Label>Hızlı Ekle</Label>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => insertHTMLTemplate('<b>Kalın Metin</b>')}
-                  >
-                    <b>B</b>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => insertHTMLTemplate('<i>İtalik Metin</i>')}
-                  >
-                    <i>I</i>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => insertHTMLTemplate('<a href="https://example.com">Link</a>')}
-                  >
-                    <Link2 className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => insertHTMLTemplate('<code>Kod</code>')}
-                  >
-                    <Code className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => insertHTMLTemplate('\n<a href="https://example.com">🔘 Buton Metni</a>\n')}
-                  >
-                    <Square className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-
               <div className="space-y-2">
                 <Label>HTML Mesaj</Label>
                 <Textarea
                   placeholder="<b>Kalın</b>, <i>İtalik</i>, <a href='url'>Link</a>"
                   value={messageHTML}
                   onChange={(e) => setMessageHTML(e.target.value)}
-                  rows={12}
+                  rows={8}
                   className="font-mono text-sm"
                 />
                 <p className="text-xs text-zinc-500">
-                  Desteklenen HTML etiketleri: b, i, u, s, code, pre, a, tg-spoiler
+                  Desteklenen: b, i, u, s, code, pre, a, tg-spoiler
                 </p>
               </div>
 
@@ -775,19 +538,170 @@ export default function Messaging() {
               <div className="space-y-2">
                 <Label>Önizleme</Label>
                 <div
-                  className="p-4 border rounded-lg bg-white dark:bg-zinc-900 min-h-[100px]"
+                  className="p-4 border rounded-lg bg-white dark:bg-zinc-900 min-h-[60px]"
                   dangerouslySetInnerHTML={{ __html: messageHTML }}
                 />
               </div>
             </TabsContent>
           </Tabs>
 
+          {/* Tags and Format - Side by Side Minimal */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Tags */}
+            <div className="space-y-2">
+              <Label className="text-sm">Etiketler</Label>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => insertTag('{username}')}
+                  className="text-xs h-7"
+                >
+                  {'{username}'}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => insertTag('{first_name}')}
+                  className="text-xs h-7"
+                >
+                  {'{first_name}'}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => insertTag('{mention}')}
+                  className="text-xs h-7"
+                >
+                  {'{mention}'}
+                </Button>
+              </div>
+            </div>
+
+            {/* Format */}
+            <div className="space-y-2">
+              <Label className="text-sm">Mesaj Formatı</Label>
+              <div className="flex gap-2">
+                <Button
+                  variant={parseMode === 'HTML' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setParseMode('HTML')}
+                  className="flex-1 h-7"
+                >
+                  HTML
+                </Button>
+                <Button
+                  variant={parseMode === 'Markdown' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setParseMode('Markdown')}
+                  className="flex-1 h-7"
+                >
+                  Markdown
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Buttons Section - Below Message */}
+          <div className="space-y-3">
+            <Label>Butonlar (Inline Keyboard)</Label>
+
+            {buttons.length === 0 ? (
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => addButton('inline')}
+                  className="flex-1"
+                  size="sm"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Buton Ekle
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {buttons.map((btn, index) => (
+                  <div key={index} className="space-y-2">
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Buton Metni"
+                        value={btn.text}
+                        onChange={(e) => updateButton(index, 'text', e.target.value)}
+                        className="flex-1"
+                      />
+                      <Input
+                        placeholder="URL"
+                        value={btn.url}
+                        onChange={(e) => updateButton(index, 'url', e.target.value)}
+                        className="flex-1"
+                      />
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        onClick={() => removeButton(index)}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+
+                    {/* Add next button options */}
+                    <div className="flex gap-2 pl-4">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => addButton('inline')}
+                        className="flex-1 h-8 text-xs"
+                      >
+                        <ArrowRight className="w-3 h-3 mr-1" />
+                        Yan Ekle
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => addButton('below')}
+                        className="flex-1 h-8 text-xs"
+                      >
+                        <ArrowDown className="w-3 h-3 mr-1" />
+                        Alt Ekle
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Send Button */}
-          <div className="flex gap-2">
+          <div className="space-y-3 pt-4 border-t">
+            {/* Message Type Selector */}
+            <div className="flex gap-2">
+              <Button
+                variant={messageType === 'all' ? 'default' : 'outline'}
+                onClick={() => setMessageType('all')}
+                className="flex-1"
+                size="sm"
+              >
+                <Users className="w-4 h-4 mr-2" />
+                Tüm Kullanıcılar
+              </Button>
+              <Button
+                variant={messageType === 'selected' ? 'default' : 'outline'}
+                onClick={() => {
+                  setMessageType('selected');
+                  setShowUserSelector(true);
+                }}
+                className="flex-1"
+                size="sm"
+              >
+                <UserCheck className="w-4 h-4 mr-2" />
+                Kullanıcı Seç ({selectedUsers.size})
+              </Button>
+            </div>
+
             <Button
               onClick={handleSendMessage}
               disabled={loading}
-              className="flex-1"
+              className="w-full"
               size="lg"
             >
               <Send className="w-4 h-4 mr-2" />
