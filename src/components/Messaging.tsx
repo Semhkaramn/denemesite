@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
-import { Send, Users, Image, Link2, Square, Code, UserCheck, Search, X, Upload, Trash2 } from 'lucide-react';
+import { Send, Users, Image, Link2, Square, Code, UserCheck, Search, X, Upload, Trash2, Video, FileImage, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatTR } from '@/lib/date-utils';
 
@@ -38,10 +38,16 @@ export default function Messaging() {
   const [useHTML, setUseHTML] = useState(false);
   const [parseMode, setParseMode] = useState<'HTML' | 'Markdown'>('HTML');
   const [disableWebPagePreview] = useState(true);
+
+  // Media states
+  const [mediaType, setMediaType] = useState<'photo' | 'video' | 'gif'>('photo');
   const [photoUrl, setPhotoUrl] = useState('');
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>('');
+
+  // Button states
   const [buttons, setButtons] = useState<Array<{text: string, url: string}>>([]);
+  const [buttonLayout, setButtonLayout] = useState<'inline' | 'vertical'>('inline');
 
   // Selected users
   const [selectedUsers, setSelectedUsers] = useState<Set<number>>(new Set());
@@ -107,17 +113,44 @@ export default function Messaging() {
     setMessageHTML(messageHTML + template);
   };
 
+  const insertTag = (tag: string) => {
+    const currentMessage = useHTML ? messageHTML : messageText;
+    const newMessage = currentMessage + tag;
+
+    if (useHTML) {
+      setMessageHTML(newMessage);
+    } else {
+      setMessageText(newMessage);
+    }
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 10 * 1024 * 1024) { // 10MB limit
-        toast.error('Dosya boyutu 10MB\'dan küçük olmalıdır');
+      if (file.size > 50 * 1024 * 1024) { // 50MB limit for videos
+        toast.error('Dosya boyutu 50MB\'dan küçük olmalıdır');
         return;
       }
-      if (!file.type.startsWith('image/')) {
+
+      // Check file type based on selected media type
+      const isImage = file.type.startsWith('image/');
+      const isVideo = file.type.startsWith('video/');
+
+      if (mediaType === 'photo' && !isImage) {
         toast.error('Sadece resim dosyaları yüklenebilir');
         return;
       }
+
+      if (mediaType === 'video' && !isVideo) {
+        toast.error('Sadece video dosyaları yüklenebilir');
+        return;
+      }
+
+      if (mediaType === 'gif' && !file.type.includes('gif')) {
+        toast.error('Sadece GIF dosyaları yüklenebilir');
+        return;
+      }
+
       setPhotoFile(file);
       setPhotoUrl(''); // Clear URL if file is selected
       const reader = new FileReader();
@@ -132,14 +165,29 @@ export default function Messaging() {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
     if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('Dosya boyutu 10MB\'dan küçük olmalıdır');
+      if (file.size > 50 * 1024 * 1024) {
+        toast.error('Dosya boyutu 50MB\'dan küçük olmalıdır');
         return;
       }
-      if (!file.type.startsWith('image/')) {
+
+      const isImage = file.type.startsWith('image/');
+      const isVideo = file.type.startsWith('video/');
+
+      if (mediaType === 'photo' && !isImage) {
         toast.error('Sadece resim dosyaları yüklenebilir');
         return;
       }
+
+      if (mediaType === 'video' && !isVideo) {
+        toast.error('Sadece video dosyaları yüklenebilir');
+        return;
+      }
+
+      if (mediaType === 'gif' && !file.type.includes('gif')) {
+        toast.error('Sadece GIF dosyaları yüklenebilir');
+        return;
+      }
+
       setPhotoFile(file);
       setPhotoUrl('');
       const reader = new FileReader();
@@ -238,7 +286,13 @@ export default function Messaging() {
               url: url
             };
           });
-          inlineKeyboard = [processedButtons];
+
+          // Layout: inline = all buttons in one row, vertical = one button per row
+          if (buttonLayout === 'vertical') {
+            inlineKeyboard = processedButtons.map(btn => [btn]);
+          } else {
+            inlineKeyboard = [processedButtons];
+          }
         }
       }
 
@@ -252,7 +306,8 @@ export default function Messaging() {
           userIds: messageType === 'selected' ? Array.from(selectedUsers) : undefined,
           disableWebPagePreview,
           photoUrl: finalPhotoUrl || undefined,
-          inlineKeyboard
+          inlineKeyboard,
+          mediaType: finalPhotoUrl ? mediaType : undefined
         })
       });
 
@@ -400,9 +455,84 @@ export default function Messaging() {
             </div>
           </div>
 
-          {/* Photo Upload */}
+          {/* Tag Helpers */}
           <div className="space-y-2">
-            <Label>Fotoğraf (Opsiyonel)</Label>
+            <Label>Etiketler (Tags)</Label>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => insertTag('{username}')}
+                className="text-xs"
+              >
+                <Code className="w-3 h-3 mr-1" />
+                {'{username}'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => insertTag('{mention}')}
+                className="text-xs"
+              >
+                <Code className="w-3 h-3 mr-1" />
+                {'{mention}'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => insertTag('{first_name}')}
+                className="text-xs"
+              >
+                <Code className="w-3 h-3 mr-1" />
+                {'{first_name}'}
+              </Button>
+            </div>
+            <p className="text-xs text-zinc-500">
+              Etiketler gönderilirken kullanıcının bilgileriyle değiştirilir
+            </p>
+          </div>
+
+          {/* Media Type Selector */}
+          <div className="space-y-2">
+            <Label>Medya Tipi</Label>
+            <div className="flex gap-2">
+              <Button
+                variant={mediaType === 'photo' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setMediaType('photo')}
+                className="flex-1"
+              >
+                <Image className="w-4 h-4 mr-2" />
+                Fotoğraf
+              </Button>
+              <Button
+                variant={mediaType === 'video' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setMediaType('video')}
+                className="flex-1"
+              >
+                <Video className="w-4 h-4 mr-2" />
+                Video
+              </Button>
+              <Button
+                variant={mediaType === 'gif' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setMediaType('gif')}
+                className="flex-1"
+              >
+                <FileImage className="w-4 h-4 mr-2" />
+                GIF
+              </Button>
+            </div>
+          </div>
+
+          {/* Media Upload */}
+          <div className="space-y-2">
+            <Label>
+              {mediaType === 'photo' && 'Fotoğraf (Opsiyonel)'}
+              {mediaType === 'video' && 'Video (Opsiyonel)'}
+              {mediaType === 'gif' && 'GIF (Opsiyonel)'}
+            </Label>
 
             {!photoPreview && !photoUrl && (
               <div
@@ -413,17 +543,25 @@ export default function Messaging() {
                 <input
                   type="file"
                   id="photoFile"
-                  accept="image/*"
+                  accept={
+                    mediaType === 'photo' ? 'image/*' :
+                    mediaType === 'video' ? 'video/*' :
+                    'image/gif'
+                  }
                   onChange={handleFileSelect}
                   className="hidden"
                 />
                 <label htmlFor="photoFile" className="cursor-pointer">
                   <Upload className="w-12 h-12 mx-auto mb-3 text-zinc-400" />
                   <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                    Resim yüklemek için tıklayın veya sürükleyin
+                    {mediaType === 'photo' && 'Resim yüklemek için tıklayın veya sürükleyin'}
+                    {mediaType === 'video' && 'Video yüklemek için tıklayın veya sürükleyin'}
+                    {mediaType === 'gif' && 'GIF yüklemek için tıklayın veya sürükleyin'}
                   </p>
                   <p className="text-xs text-zinc-500">
-                    PNG, JPG, GIF (Maks. 10MB)
+                    {mediaType === 'photo' && 'PNG, JPG (Maks. 50MB)'}
+                    {mediaType === 'video' && 'MP4, MOV (Maks. 50MB)'}
+                    {mediaType === 'gif' && 'GIF (Maks. 50MB)'}
                   </p>
                 </label>
               </div>
@@ -445,7 +583,11 @@ export default function Messaging() {
               <div className="flex gap-2">
                 <Input
                   id="photoUrl"
-                  placeholder="https://example.com/photo.jpg"
+                  placeholder={
+                    mediaType === 'photo' ? 'https://example.com/photo.jpg' :
+                    mediaType === 'video' ? 'https://example.com/video.mp4' :
+                    'https://example.com/animation.gif'
+                  }
                   value={photoUrl}
                   onChange={(e) => setPhotoUrl(e.target.value)}
                 />
@@ -518,6 +660,33 @@ export default function Messaging() {
                 Buton Ekle
               </Button>
             </div>
+
+            {/* Button Layout */}
+            {buttons.length > 0 && (
+              <div className="space-y-2 mt-3">
+                <Label>Buton Düzeni</Label>
+                <div className="flex gap-2">
+                  <Button
+                    variant={buttonLayout === 'inline' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setButtonLayout('inline')}
+                    className="flex-1"
+                  >
+                    <AlignHorizontalDistributeCenter className="w-4 h-4 mr-2" />
+                    Yanyana
+                  </Button>
+                  <Button
+                    variant={buttonLayout === 'vertical' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setButtonLayout('vertical')}
+                    className="flex-1"
+                  >
+                    <AlignVerticalDistributeCenter className="w-4 h-4 mr-2" />
+                    Alt Alta
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Message Editor */}
