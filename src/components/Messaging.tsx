@@ -74,6 +74,10 @@ export default function Messaging() {
   const [messageHistory, setMessageHistory] = useState<MessageHistory[]>([]);
 
   useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  useEffect(() => {
     if (showUserSelector) {
       fetchUsers();
     }
