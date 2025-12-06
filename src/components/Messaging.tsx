@@ -184,10 +184,19 @@ export default function Messaging() {
     setLoading(true);
 
     try {
-      // Upload photo file if exists
+      // For photo file, we need URL not base64 - warn user
       let finalPhotoUrl = photoUrl;
       if (photoFile) {
-        finalPhotoUrl = await uploadPhoto(photoFile);
+        toast.error('Fotoğraf dosyası yükleme henüz desteklenmiyor. Lütfen fotoğraf URL\'si kullanın.');
+        setLoading(false);
+        return;
+      }
+
+      // Validate photo URL if provided
+      if (finalPhotoUrl && !finalPhotoUrl.startsWith('http')) {
+        toast.error('Geçerli bir URL giriniz (http:// veya https:// ile başlamalı)');
+        setLoading(false);
+        return;
       }
 
       // Prepare inline keyboard if buttons exist
@@ -196,6 +205,14 @@ export default function Messaging() {
         // Filter out empty buttons
         const validButtons = buttons.filter(btn => btn.text.trim() && btn.url.trim());
         if (validButtons.length > 0) {
+          // Validate button URLs
+          for (const btn of validButtons) {
+            if (!btn.url.startsWith('http')) {
+              toast.error(`Buton URL'si geçersiz: ${btn.text}`);
+              setLoading(false);
+              return;
+            }
+          }
           inlineKeyboard = [validButtons.map(btn => ({
             text: btn.text,
             url: btn.url
@@ -207,7 +224,7 @@ export default function Messaging() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: message || (finalPhotoUrl ? 'Fotoğraf' : ''),
+          message: message || '',
           parseMode,
           sendToAll: messageType === 'all',
           userIds: messageType === 'selected' ? Array.from(selectedUsers) : undefined,
@@ -220,7 +237,8 @@ export default function Messaging() {
       const data = await response.json();
 
       if (data.success) {
-        toast.success(`Mesaj başarıyla gönderildi! (${data.sentCount} kullanıcı)`);
+        toast.success(`Mesaj başarıyla kuyruğa eklendi! (${data.sentCount} kullanıcı)`);
+        toast.info('Bot 10 saniye içinde mesajları gönderecek...');
         setMessageText('');
         setMessageHTML('');
         clearPhoto();
