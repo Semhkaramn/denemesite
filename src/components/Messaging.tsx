@@ -34,7 +34,6 @@ interface MessageHistory {
 interface ButtonItem {
   text: string;
   url: string;
-  position: 'inline' | 'below';
 }
 
 export default function Messaging() {
@@ -51,17 +50,9 @@ export default function Messaging() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>('');
 
-  // Button states with positioning
-  const [buttons, setButtons] = useState<ButtonItem[]>([]);
-
-  // Add button dialog states
-  const [showAddButtonDialog, setShowAddButtonDialog] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [editingButtonIndex, setEditingButtonIndex] = useState<number | null>(null);
-  const [addAfterIndex, setAddAfterIndex] = useState<number | null>(null);
-  const [newButtonText, setNewButtonText] = useState('');
-  const [newButtonUrl, setNewButtonUrl] = useState('');
-  const [newButtonPosition, setNewButtonPosition] = useState<'inline' | 'below'>('inline');
+  // Single button state
+  const [buttonText, setButtonText] = useState('');
+  const [buttonUrl, setButtonUrl] = useState('');
 
   // Selected users
   const [selectedUsers, setSelectedUsers] = useState<Set<number>>(new Set());
@@ -270,82 +261,6 @@ export default function Messaging() {
     }
   };
 
-  const openAddButtonDialog = (position: 'inline' | 'below', afterIndex?: number) => {
-    setIsEditMode(false);
-    setNewButtonPosition(position);
-    setNewButtonText('');
-    setNewButtonUrl('');
-    setAddAfterIndex(afterIndex !== undefined && afterIndex >= 0 ? afterIndex : null);
-    setEditingButtonIndex(null);
-    setShowAddButtonDialog(true);
-  };
-
-  const openEditButtonDialog = (index: number) => {
-    setIsEditMode(true);
-    const button = buttons[index];
-    setNewButtonText(button.text);
-    setNewButtonUrl(button.url);
-    setNewButtonPosition(button.position);
-    setEditingButtonIndex(index);
-    setAddAfterIndex(null);
-    setShowAddButtonDialog(true);
-  };
-
-  const confirmAddButton = () => {
-    if (!newButtonText.trim() || !newButtonUrl.trim()) {
-      toast.error('Lütfen buton metni ve URL girin!');
-      return;
-    }
-
-    if (isEditMode && editingButtonIndex !== null) {
-      // Editing existing button
-      const newButtons = [...buttons];
-      newButtons[editingButtonIndex] = {
-        text: newButtonText,
-        url: newButtonUrl,
-        position: newButtonPosition
-      };
-      setButtons(newButtons);
-      toast.success('Buton güncellendi!');
-    } else {
-      // Adding new button
-      const newButton = {
-        text: newButtonText,
-        url: newButtonUrl,
-        position: newButtonPosition
-      };
-
-      if (addAfterIndex !== null && addAfterIndex >= 0) {
-        // Insert after specific button
-        const newButtons = [...buttons];
-        newButtons.splice(addAfterIndex + 1, 0, newButton);
-        setButtons(newButtons);
-      } else {
-        // Add to end
-        setButtons([...buttons, newButton]);
-      }
-      toast.success('Buton eklendi!');
-    }
-
-    setShowAddButtonDialog(false);
-    setNewButtonText('');
-    setNewButtonUrl('');
-    setIsEditMode(false);
-    setEditingButtonIndex(null);
-    setAddAfterIndex(null);
-  };
-
-  const removeButton = (index: number) => {
-    setButtons(buttons.filter((_, i) => i !== index));
-    toast.success('Buton silindi!');
-  };
-
-  const updateButton = (index: number, field: 'text' | 'url', value: string) => {
-    const newButtons = [...buttons];
-    newButtons[index][field] = value;
-    setButtons(newButtons);
-  };
-
   const handleSendMessage = async () => {
     const message = useHTML ? messageHTML : messageText;
 
@@ -385,44 +300,14 @@ export default function Messaging() {
         }
       }
 
-      // Build inline keyboard with positioning
+      // Build inline keyboard for single button
       let inlineKeyboard = null;
-      if (buttons.length > 0) {
-        const validButtons = buttons.filter(btn => btn.text.trim() && btn.url.trim());
-        if (validButtons.length > 0) {
-          const processedButtons = validButtons.map(btn => {
-            let url = btn.url.trim();
-            if (!url.startsWith('http://') && !url.startsWith('https://')) {
-              url = 'https://' + url;
-            }
-            return {
-              text: btn.text,
-              url: url,
-              position: btn.position
-            };
-          });
-
-          // Group buttons by rows based on position
-          const rows: Array<Array<{text: string; url: string}>> = [];
-          let currentRow: Array<{text: string; url: string}> = [];
-
-          for (const btn of processedButtons) {
-            if (btn.position === 'below' && currentRow.length > 0) {
-              rows.push(currentRow);
-              currentRow = [];
-            }
-            currentRow.push({ text: btn.text, url: btn.url });
-            if (btn.position === 'below') {
-              rows.push(currentRow);
-              currentRow = [];
-            }
-          }
-          if (currentRow.length > 0) {
-            rows.push(currentRow);
-          }
-
-          inlineKeyboard = rows;
+      if (buttonText.trim() && buttonUrl.trim()) {
+        let url = buttonUrl.trim();
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+          url = 'https://' + url;
         }
+        inlineKeyboard = [[{ text: buttonText, url: url }]];
       }
 
       const response = await fetch('/api/messages/send', {
@@ -448,7 +333,8 @@ export default function Messaging() {
         setMessageText('');
         setMessageHTML('');
         clearPhoto();
-        setButtons([]);
+        setButtonText('');
+        setButtonUrl('');
         setSelectedUsers(new Set());
         fetchMessageHistory();
       } else {
@@ -766,94 +652,49 @@ export default function Messaging() {
             </TabsContent>
           </Tabs>
 
-          {/* Buttons Section - Simplified */}
+          {/* Button Section - Single Button */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-base font-semibold">Butonlar (Inline Keyboard)</Label>
-              {buttons.length > 0 && (
+            <Label className="text-base font-semibold">Buton (İsteğe Bağlı)</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="buttonText">Buton Metni</Label>
+                <Input
+                  id="buttonText"
+                  type="text"
+                  value={buttonText}
+                  onChange={(e) => setButtonText(e.target.value)}
+                  placeholder="Örn: Siteye Git"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="buttonUrl">Buton URL</Label>
+                <Input
+                  id="buttonUrl"
+                  type="text"
+                  value={buttonUrl}
+                  onChange={(e) => setButtonUrl(e.target.value)}
+                  placeholder="Örn: https://example.com"
+                />
+              </div>
+            </div>
+            {buttonText && buttonUrl && (
+              <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <Link2 className="w-4 h-4 text-blue-500" />
+                <div className="flex-1">
+                  <div className="font-medium text-sm text-blue-900 dark:text-blue-100">{buttonText}</div>
+                  <div className="text-xs text-blue-600 dark:text-blue-400">{buttonUrl}</div>
+                </div>
                 <Button
                   variant="ghost"
-                  size="sm"
-                  onClick={() => setButtons([])}
-                  className="h-7 text-xs hover:text-red-600"
+                  size="icon"
+                  onClick={() => {
+                    setButtonText('');
+                    setButtonUrl('');
+                  }}
+                  className="h-7 w-7 hover:bg-red-100 hover:text-red-600"
                 >
-                  <Trash2 className="w-3 h-3 mr-1" />
-                  Tümünü Sil
+                  <X className="w-3.5 h-3.5" />
                 </Button>
-              )}
-            </div>
-
-            {buttons.length === 0 ? (
-              <Button
-                onClick={() => openAddButtonDialog('below', -1)}
-                variant="outline"
-                className="w-full"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Buton Ekle
-              </Button>
-            ) : (
-              <div className="space-y-3 border rounded-lg p-4 bg-zinc-50/50 dark:bg-zinc-900/20">
-                {buttons.map((btn, btnIndex) => {
-                  return (
-                    <div key={btnIndex} className="space-y-2">
-                      {/* Button Card */}
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-white dark:bg-zinc-950 border rounded-lg p-3 hover:border-blue-400 dark:hover:border-blue-600 transition-colors group">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-start gap-2 min-w-0 flex-1">
-                              <Link2 className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                              <div className="min-w-0 flex-1">
-                                <div className="font-medium text-sm mb-0.5">{btn.text}</div>
-                                <div className="text-xs text-zinc-500 truncate">{btn.url}</div>
-                              </div>
-                            </div>
-                            <div className="flex gap-1 flex-shrink-0">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => openEditButtonDialog(btnIndex)}
-                                className="h-7 w-7 hover:bg-blue-100 dark:hover:bg-blue-950"
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => removeButton(btnIndex)}
-                                className="h-7 w-7 hover:bg-red-100 hover:text-red-600"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Add Buttons - Always show both */}
-                      <div className="flex items-center justify-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openAddButtonDialog('inline', btnIndex)}
-                          className="text-xs h-7"
-                        >
-                          <ArrowRight className="w-3 h-3 mr-1" />
-                          Yan Ekle
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openAddButtonDialog('below', btnIndex)}
-                          className="text-xs h-7"
-                        >
-                          <ArrowDown className="w-3 h-3 mr-1" />
-                          Alt Ekle
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
               </div>
             )}
           </div>
@@ -1043,66 +884,7 @@ export default function Messaging() {
         </DialogContent>
       </Dialog>
 
-      {/* Add/Edit Button Dialog - Simplified */}
-      <Dialog open={showAddButtonDialog} onOpenChange={setShowAddButtonDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {isEditMode ? 'Buton Düzenle' : 'Buton Ekle'}
-            </DialogTitle>
-            <DialogDescription>
-              {isEditMode ? 'Buton bilgilerini güncelleyin' : 'Yeni buton bilgilerini girin'}
-            </DialogDescription>
-          </DialogHeader>
 
-          <div className="space-y-4 py-4">
-            {/* Button Text */}
-            <div className="space-y-2">
-              <Label htmlFor="buttonText">Buton Metni</Label>
-              <Input
-                id="buttonText"
-                placeholder="örn: Web Sitesi, Telegram Kanalı"
-                value={newButtonText}
-                onChange={(e) => setNewButtonText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    document.getElementById('buttonUrl')?.focus();
-                  }
-                }}
-                autoFocus
-              />
-            </div>
-
-            {/* Button URL */}
-            <div className="space-y-2">
-              <Label htmlFor="buttonUrl">URL</Label>
-              <Input
-                id="buttonUrl"
-                placeholder="https://example.com"
-                value={newButtonUrl}
-                onChange={(e) => setNewButtonUrl(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    confirmAddButton();
-                  }
-                }}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddButtonDialog(false)}>
-              İptal
-            </Button>
-            <Button
-              onClick={confirmAddButton}
-              disabled={!newButtonText.trim() || !newButtonUrl.trim()}
-            >
-              {isEditMode ? 'Güncelle' : 'Ekle'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
