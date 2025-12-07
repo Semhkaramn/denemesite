@@ -80,8 +80,46 @@ export async function POST(request: Request) {
       `, [times[i], codes[i]]);
     }
 
-    // TODO: Send announcement to group if sendAnnouncement is true
-    // This would need bot integration
+    // Send announcement to group if requested
+    if (sendAnnouncement) {
+      try {
+        // Get group announcement template from settings
+        const settingsResult = await query('SELECT promocod_group_template FROM settings WHERE id = 1');
+        const groupTemplate = settingsResult.rows[0]?.promocod_group_template ||
+          '🎉 Yeni Promocode Çekilişi Başladı!\n\n{codes_count} adet promokod {hours} saat içinde dağıtılacak!\n\nMesaj atarak katılabilirsiniz!';
+
+        const announcementMessage = groupTemplate
+          .replace('{codes_count}', codes.length.toString())
+          .replace('{hours}', hours.toString());
+
+        // Create group_announcements table and insert announcement
+        await query(`
+          CREATE TABLE IF NOT EXISTS group_announcements (
+            id SERIAL PRIMARY KEY,
+            message TEXT NOT NULL,
+            parse_mode VARCHAR(10) DEFAULT 'HTML',
+            pin_message BOOLEAN DEFAULT FALSE,
+            photo_url TEXT,
+            media_type VARCHAR(10) DEFAULT 'photo',
+            inline_keyboard JSONB,
+            announcement_type VARCHAR(50) DEFAULT 'general',
+            status VARCHAR(20) DEFAULT 'pending',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            sent_at TIMESTAMP,
+            message_id BIGINT
+          )
+        `);
+
+        await query(`
+          INSERT INTO group_announcements
+          (message, parse_mode, pin_message, announcement_type)
+          VALUES ($1, $2, $3, $4)
+        `, [announcementMessage, 'HTML', pinMessage || false, 'promocode']);
+      } catch (announcementError) {
+        console.error('Failed to queue announcement:', announcementError);
+        // Don't fail the whole request if announcement fails
+      }
+    }
 
     return NextResponse.json({
       success: true,
