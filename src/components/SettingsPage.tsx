@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { Settings, Save, Database, Trash2, AlertTriangle, MessageSquare, Gift, Trophy } from 'lucide-react';
+import { Settings, Save, Database, Trash2, AlertTriangle, MessageSquare, Gift, Trophy, UserPlus, Users as UsersIcon } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 
@@ -25,8 +25,15 @@ export default function SettingsPage() {
   const [randyDmTemplate, setRandyDmTemplate] = useState('');
   const [randyGroupTemplate, setRandyGroupTemplate] = useState('');
 
+  // User management
+  const [canCreateUsers, setCanCreateUsers] = useState(false);
+  const [newUsername, setNewUsername] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+
   useEffect(() => {
     fetchSettings();
+    const canCreate = localStorage.getItem('canCreateUsers') === 'true';
+    setCanCreateUsers(canCreate);
   }, []);
 
   const fetchSettings = async () => {
@@ -98,14 +105,87 @@ export default function SettingsPage() {
     });
   };
 
+  const handleCreateUser = async () => {
+    if (!newUsername || !newPassword) {
+      toast.error('Kullanıcı adı ve şifre gerekli');
+      return;
+    }
+
+    const currentUser = localStorage.getItem('currentUser');
+    if (!currentUser) {
+      toast.error('Oturum bilgisi bulunamadı');
+      return;
+    }
+
+    const createPromise = fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        currentUser,
+        newUsername,
+        newPassword
+      })
+    }).then(async (response) => {
+      const data = await response.json();
+      if (data.success) {
+        setNewUsername('');
+        setNewPassword('');
+        return data;
+      }
+      throw new Error(data.error || 'Kullanıcı oluşturulamadı');
+    });
+
+    toast.promise(createPromise, {
+      loading: 'Kullanıcı oluşturuluyor...',
+      success: 'Kullanıcı başarıyla oluşturuldu!',
+      error: (err) => `Hata: ${err.message}`,
+    });
+  };
+
   if (loading) {
     return <div className="text-center py-12">Yükleniyor...</div>;
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-
+      {/* User Management */}
+      {canCreateUsers && (
+        <Card className="border-0 shadow-lg">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <UsersIcon className="w-5 h-5" />
+              <CardTitle>Kullanıcı Yönetimi</CardTitle>
+            </div>
+            <CardDescription>Yeni admin kullanıcıları oluşturun</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="newUsername">Kullanıcı Adı</Label>
+              <Input
+                id="newUsername"
+                type="text"
+                placeholder="Yeni kullanıcı adı"
+                value={newUsername}
+                onChange={(e) => setNewUsername(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">Şifre</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                placeholder="Şifre"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+            </div>
+            <Button onClick={handleCreateUser} className="w-full">
+              <UserPlus className="w-4 h-4 mr-2" />
+              Yeni Kullanıcı Oluştur
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Message Templates - Promocode */}
       <Card className="border-0 shadow-lg">
@@ -280,4 +360,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
