@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Users,
   MessageSquare,
@@ -13,7 +15,8 @@ import {
   Activity,
   TrendingUp,
   Settings,
-  Send
+  Send,
+  LogOut
 } from 'lucide-react';
 import Dashboard from '@/components/Dashboard';
 import Promocodes from '@/components/Promocodes';
@@ -25,24 +28,58 @@ import Messaging from '@/components/Messaging';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [authenticated, setAuthenticated] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    const isAuth = localStorage.getItem('authenticated');
+    if (!isAuth) {
+      router.push('/login');
+    } else {
+      setAuthenticated(true);
+    }
+  }, [router]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('authenticated');
+    router.push('/login');
+  };
+
+  if (!authenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-zinc-100 to-zinc-200 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-800 flex items-center justify-center">
+        <div className="text-zinc-500">Yükleniyor...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-zinc-100 to-zinc-200 dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-800">
       <div className="container mx-auto p-4 md:p-8">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-zinc-800 to-zinc-600 flex items-center justify-center">
-              <Activity className="w-6 h-6 text-white" />
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-zinc-800 to-zinc-600 flex items-center justify-center">
+                <Activity className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">
+                  SüperSohbet Admin Panel
+                </h1>
+                <p className="text-zinc-500 dark:text-zinc-400">
+                  Bot yönetim ve istatistik paneli
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">
-                SüperSohbet Admin Panel
-              </h1>
-              <p className="text-zinc-500 dark:text-zinc-400">
-                Bot yönetim ve istatistik paneli
-              </p>
-            </div>
+            <Button
+              variant="outline"
+              onClick={handleLogout}
+              className="gap-2"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Çıkış</span>
+            </Button>
           </div>
         </div>
 
